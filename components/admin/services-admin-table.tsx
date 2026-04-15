@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { startTransition, useDeferredValue, useState } from "react";
-import { deleteServiceAction, upsertServiceAction } from "@/app/admin/actions";
+import {
+  deleteServiceAction,
+  updateServiceActiveStateAction,
+  upsertServiceAction,
+} from "@/app/admin/actions";
 import {
   SortableHeaderButton,
-  StatusBadge,
   TableActionButton,
   TableBadge,
   TableCheckboxField,
@@ -299,7 +302,7 @@ export function ServicesAdminTable({
                   <input
                     value={cityFilter}
                     onChange={(event) => setCityFilter(event.target.value)}
-                    placeholder="Citta o indirizzo"
+                    placeholder="Indirizzo"
                     className="w-full rounded-lg border border-zinc-300 px-2 py-1.5 text-xs"
                   />
                 </th>
@@ -357,10 +360,7 @@ export function ServicesAdminTable({
                       {service.schedule_label}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="space-y-1 text-zinc-700">
-                        <p>{service.city}</p>
-                        <p className="text-xs text-zinc-500">{service.address}</p>
-                      </div>
+                      <p className="text-zinc-700">{service.address}</p>
                     </td>
                     <td className="px-4 py-3">
                       <TableBadge
@@ -370,11 +370,36 @@ export function ServicesAdminTable({
                       </TableBadge>
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge
-                        isActive={service.is_active}
-                        activeLabel="Attivo"
-                        inactiveLabel="Disattivato"
-                      />
+                      <form
+                        action={updateServiceActiveStateAction}
+                        className="inline-flex items-center gap-2"
+                      >
+                        <input
+                          type="hidden"
+                          name="redirect_to"
+                          value="/admin/servizi"
+                        />
+                        <input type="hidden" name="service_id" value={service.id} />
+                        <input
+                          type="checkbox"
+                          name="is_active"
+                          defaultChecked={service.is_active}
+                          onChange={(event) =>
+                            event.currentTarget.form?.requestSubmit()
+                          }
+                          aria-label={`Attiva o disattiva il servizio ${service.name}`}
+                        />
+                        <span
+                          className={[
+                            "inline-block h-3 w-3 rounded-full border",
+                            service.is_active
+                              ? "border-emerald-300 bg-emerald-500"
+                              : "border-rose-300 bg-rose-500",
+                          ].join(" ")}
+                          title={service.is_active ? "Attivo" : "Disattivato"}
+                          aria-hidden="true"
+                        />
+                      </form>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
@@ -383,7 +408,21 @@ export function ServicesAdminTable({
                             setEditor({ mode: "edit", id: service.id })
                           }
                         >
-                          Modifica
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          >
+                            <path d="M12 20h9" />
+                            <path d="m16.5 3.5 4 4L7 21l-4 1 1-4Z" />
+                          </svg>
+                          <span className="sr-only">Modifica</span>
                         </TableActionButton>
                         <Link
                           href={`/admin/servizi/${service.id}`}

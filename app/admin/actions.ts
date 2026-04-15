@@ -24,7 +24,25 @@ function redirectWithMessage(
   redirect(`${path}?${type}=${encodeURIComponent(message)}`);
 }
 
+function isNextRedirectError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const digest = (error as { digest?: unknown }).digest;
+
+  if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+    return true;
+  }
+
+  return error instanceof Error && error.message === "NEXT_REDIRECT";
+}
+
 function handleActionError(error: unknown, fallbackMessage: string) {
+  if (isNextRedirectError(error)) {
+    throw error;
+  }
+
   if (error instanceof Error && error.message.trim() !== "") {
     return error.message;
   }
@@ -304,6 +322,35 @@ export async function upsertServiceAction(formData: FormData) {
       redirectTo,
       "error",
       handleActionError(error, "Impossibile salvare il servizio."),
+    );
+  }
+}
+
+export async function updateServiceActiveStateAction(formData: FormData) {
+  const serviceId = readRequiredString(formData, "service_id");
+  const redirectTo = readRedirectPath(formData, "/admin/servizi");
+
+  try {
+    const { supabase } = await assertAdmin();
+
+    const { error } = await supabase
+      .from("services")
+      .update({
+        is_active: readBoolean(formData, "is_active"),
+      })
+      .eq("id", serviceId);
+
+    if (error) {
+      throw error;
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/servizi");
+  } catch (error) {
+    redirectWithMessage(
+      redirectTo,
+      "error",
+      handleActionError(error, "Impossibile aggiornare lo stato del servizio."),
     );
   }
 }

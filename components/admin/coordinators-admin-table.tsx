@@ -1,7 +1,10 @@
 "use client";
 
 import { startTransition, useDeferredValue, useState } from "react";
-import { upsertCoordinatorAction } from "@/app/admin/actions";
+import {
+  deleteCoordinatorAction,
+  upsertCoordinatorAction,
+} from "@/app/admin/actions";
 import {
   SortableHeaderButton,
   StatusBadge,
@@ -23,6 +26,7 @@ import type { Tables } from "@/lib/supabase/database.types";
 
 type CoordinatorRow = Tables<"coordinators"> & {
   assignedServicesCount: number;
+  grantAdminAccess: boolean;
 };
 
 type SortKey =
@@ -31,6 +35,7 @@ type SortKey =
   | "email"
   | "phone"
   | "assignedServicesCount"
+  | "grantAdminAccess"
   | "is_active";
 
 type CoordinatorsAdminTableProps = {
@@ -153,6 +158,12 @@ export function CoordinatorsAdminTable({
             right.assignedServicesCount,
             sortDirection,
           );
+        case "grantAdminAccess":
+          return compareNumber(
+            left.grantAdminAccess ? 1 : 0,
+            right.grantAdminAccess ? 1 : 0,
+            sortDirection,
+          );
         case "is_active":
           return compareNumber(
             left.is_active ? 1 : 0,
@@ -171,6 +182,9 @@ export function CoordinatorsAdminTable({
   ).length;
   const linkedCoordinators = coordinators.filter(
     (coordinator) => coordinator.assignedServicesCount > 0,
+  ).length;
+  const adminEnabledCoordinators = coordinators.filter(
+    (coordinator) => coordinator.grantAdminAccess,
   ).length;
 
   function toggleSort(nextKey: SortKey) {
@@ -203,6 +217,7 @@ export function CoordinatorsAdminTable({
           { label: "totali", value: String(totalCoordinators) },
           { label: "attivi", value: String(activeCoordinators) },
           { label: "collegati a servizi", value: String(linkedCoordinators) },
+          { label: "anche admin", value: String(adminEnabledCoordinators) },
         ]}
         action={
           <button
@@ -260,6 +275,14 @@ export function CoordinatorsAdminTable({
                 </th>
                 <th className="px-4 py-3">
                   <SortableHeaderButton
+                    label="Accesso"
+                    isActive={sortKey === "grantAdminAccess"}
+                    direction={sortDirection}
+                    onClick={() => toggleSort("grantAdminAccess")}
+                  />
+                </th>
+                <th className="px-4 py-3">
+                  <SortableHeaderButton
                     label="Stato"
                     isActive={sortKey === "is_active"}
                     direction={sortDirection}
@@ -313,6 +336,11 @@ export function CoordinatorsAdminTable({
                   </select>
                 </th>
                 <th className="px-2 pb-3">
+                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs text-zinc-600">
+                    Coordinatore / Admin
+                  </div>
+                </th>
+                <th className="px-2 pb-3">
                   <select
                     value={statusFilter}
                     onChange={(event) => setStatusFilter(event.target.value)}
@@ -333,7 +361,7 @@ export function CoordinatorsAdminTable({
             <tbody>
               {visibleCoordinators.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-5 text-zinc-500" colSpan={7}>
+                  <td className="px-4 py-5 text-zinc-500" colSpan={8}>
                     Nessun coordinatore corrisponde ai filtri attivi.
                   </td>
                 </tr>
@@ -362,6 +390,17 @@ export function CoordinatorsAdminTable({
                       >
                         {coordinator.assignedServicesCount} servizi
                       </TableBadge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <TableBadge tone="info">Coordinatore</TableBadge>
+                        {coordinator.grantAdminAccess ? (
+                          <TableBadge tone="positive">Admin</TableBadge>
+                        ) : null}
+                        {coordinator.auth_user_id ? (
+                          <TableBadge tone="neutral">Magic Link pronto</TableBadge>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge
@@ -462,6 +501,18 @@ export function CoordinatorsAdminTable({
                 defaultChecked={editingCoordinator?.is_active ?? true}
               />
             </TableCheckboxField>
+
+            <TableCheckboxField
+              label="Abilita anche l'accesso admin"
+              description="Promuove il coordinatore ad admin e prepara automaticamente l'utente auth usato dal Magic Link."
+              className="md:col-span-2"
+            >
+              <input
+                type="checkbox"
+                name="grant_admin_access"
+                defaultChecked={editingCoordinator?.grantAdminAccess ?? false}
+              />
+            </TableCheckboxField>
           </div>
 
           <TableFormActions
@@ -470,6 +521,16 @@ export function CoordinatorsAdminTable({
               editingCoordinator
                 ? "Aggiorna coordinatore"
                 : "Salva coordinatore"
+            }
+            destructiveAction={
+              editingCoordinator
+                ? {
+                    label: "Elimina coordinatore",
+                    confirmMessage:
+                      "Confermi l'eliminazione del coordinatore? L'operazione e' irreversibile.",
+                    formAction: deleteCoordinatorAction,
+                  }
+                : undefined
             }
           />
         </form>

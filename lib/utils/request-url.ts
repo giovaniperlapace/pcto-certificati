@@ -3,9 +3,14 @@ import { headers } from "next/headers";
 export async function getBaseUrl() {
   const headerStore = await headers();
   const origin = headerStore.get("origin");
+  const referer = headerStore.get("referer");
 
   if (origin) {
     return origin;
+  }
+
+  if (referer) {
+    return new URL(referer).origin;
   }
 
   const forwardedHost = headerStore.get("x-forwarded-host");

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { startTransition, useDeferredValue, useState } from "react";
-import { upsertServiceAction } from "@/app/admin/actions";
+import { deleteServiceAction, upsertServiceAction } from "@/app/admin/actions";
 import {
   SortableHeaderButton,
   StatusBadge,
@@ -519,6 +519,16 @@ export function ServicesAdminTable({
             onCancel={() => setEditor(null)}
             submitLabel={
               editingService ? "Aggiorna servizio" : "Salva servizio"
+            }
+            destructiveAction={
+              editingService
+                ? {
+                    label: "Elimina servizio",
+                    confirmMessage:
+                      "Confermi l'eliminazione del servizio? L'operazione e' irreversibile.",
+                    formAction: deleteServiceAction,
+                  }
+                : undefined
             }
           />
         </form>

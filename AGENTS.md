@@ -23,7 +23,7 @@ MVP web app per:
 
 Bootstrap app completato.
 
-Base tecnica presente:
+Gia' presente:
 
 - app Next.js inizializzata
 - lint e build funzionanti
@@ -43,38 +43,139 @@ Gia' fatto:
 - `proxy.ts` presente per refresh sessione
 - route callback Magic Link presente in `app/auth/callback/route.ts`
 
-### Git / remoto
+### Fase 3 completata
 
-- repository Git inizializzato
-- remote `origin` = `https://github.com/giovaniperlapace/pcto-certificati.git`
-- branch principale = `main`
-- ultimo commit noto della baseline iniziale: `4b897cb`
-- push su GitHub gia' eseguito
+Area admin minima completata e gia' pushata su GitHub.
 
-## Documenti da leggere prima di continuare
+Gia' presente:
 
-### Piano principale
+- login Magic Link in `app/entra/`
+- guard admin server-side in `lib/auth/admin.ts`
+- layout admin con navigazione e logout
+- dashboard admin
+- CRUD scuole
+- CRUD servizi
+- CRUD coordinatori
+- gestione relazione `service_coordinators`
 
-- `docs/piano-implementazione-mvp-certificati.md`
+Commit rilevante:
 
-### File di contesto originale
+- `23d5e37` `Build admin management area`
 
-- `primo_prompt.txt`
+## Stato dati reale su Supabase
 
-## Scelte di dominio gia' fissate
+Alla data attuale risultano:
 
-- la richiesta di certificato e' l'entita' principale
-- non esiste una tabella `students` per l'MVP
-- tipi certificato: `pcto`, `volontariato`
-- ogni servizio deve avere almeno un coordinatore attivo
-- stato richieste:
-  - `submitted`
-  - `approved`
-  - `rejected`
-  - `completed`
-  - `delivery_failed`
-  - `cancelled`
-- anno scolastico attivo iniziale gia' inserito: `2025/2026`
+- `services`: 69
+- `schools`: 41
+- `coordinators`: 2
+- `service_coordinators`: 0
+- `user_roles`: 2
+- `certificate_requests`: 0
+
+Note importanti:
+
+- i servizi sono stati importati tutti `inactive`
+- questo e' voluto: il database non consente servizi attivi senza almeno un coordinatore attivo collegato
+- le scuole sono state importate con `send_certificate_to_school_by_default = false`
+- le scuole sono state importate con `send_certificate_to_teacher_by_default = false`
+
+## Import gia' eseguiti
+
+### Servizi
+
+Origine:
+
+- `/Users/stefanolaptop/Documents/AAATemp/servizi.csv`
+
+Esito:
+
+- 69 servizi importati
+- 5 righe saltate per indirizzo mancante
+- 46 servizi risultavano `Attivo` nel CSV ma sono stati salvati `inactive` per rispettare il vincolo DB
+
+Script creato:
+
+- `scripts/import-services-from-csv.mjs`
+
+Mappatura usata:
+
+- `Servizio` -> `name`
+- `Quando` -> `schedule_label`, `weekday`, `start_time`, `end_time`
+- `Dove` -> `address`
+- `tipo_servizio` -> `certificate_label`
+- `city` -> `Roma`
+
+### Scuole
+
+Origine:
+
+- `/Users/stefanolaptop/Documents/RStudio/PCTO_2024/data/scuole.xlsx`
+
+Esito:
+
+- 41 scuole importate
+- `school_email` popolato da `mail_certificati`
+- `teacher_name` e `teacher_email` lasciati vuoti
+- 2 `full_name` duplicati nel file sorgente sono stati resi univoci aggiungendo il `short_name` tra parentesi
+
+Script creato:
+
+- `scripts/import-schools-from-xlsx.py`
+
+Mappatura usata:
+
+- `Scuola` -> `short_name`
+- `denominazione_scuola` -> `full_name`
+- `mail_certificati` -> `school_email`
+
+## Auth e ruoli
+
+### Supabase project
+
+- nome progetto: `pcto-certificati`
+- project ref: `dcxwxtyuqdzdyprlhfyt`
+
+### Deploy web
+
+- URL Vercel produzione: `https://pcto-certificati.vercel.app/`
+
+### Configurazione consigliata in Supabase
+
+- `Site URL`: `https://pcto-certificati.vercel.app`
+- redirect consentiti:
+  - `https://pcto-certificati.vercel.app/auth/callback`
+  - `http://localhost:3000/auth/callback`
+  - `http://127.0.0.1:3000/auth/callback`
+
+### Utenti auth verificati
+
+Al momento esistono in `auth.users`:
+
+- `info@giovaniperlapace.it`
+- `steorlando@gmail.com`
+
+### Stato Magic Link
+
+Situazione attuale:
+
+- la probe via `signInWithOtp` ora risponde senza errore
+- quindi il Magic Link al momento non risulta bloccato lato API Supabase
+
+Attenzione:
+
+- in una sessione precedente il Magic Link falliva con `500 Error sending magic link email`
+- il problema sembrava legato alla configurazione SMTP custom di Supabase Auth
+- se il problema si ripresenta, controllare prima `Authentication > SMTP Settings`
+
+### Ruoli admin
+
+`user_roles` usa `auth.users.id`, non la tabella `coordinators`.
+
+Questo significa:
+
+- per accedere a `/admin` serve una riga in `user_roles` collegata all'id dell'utente auth
+- creare un coordinatore con la stessa email non basta a renderlo admin
 
 ## Struttura Supabase gia' presente
 
@@ -102,26 +203,91 @@ Gia' fatto:
 - `supabase/config.toml`
 - `lib/supabase/database.types.ts`
 
-## Auth e URL
+## Scelte di dominio gia' fissate
 
-### Supabase project
+- la richiesta di certificato e' l'entita' principale
+- non esiste una tabella `students` per l'MVP
+- tipi certificato: `pcto`, `volontariato`
+- ogni servizio deve avere almeno un coordinatore attivo
+- stato richieste:
+  - `submitted`
+  - `approved`
+  - `rejected`
+  - `completed`
+  - `delivery_failed`
+  - `cancelled`
+- anno scolastico attivo iniziale gia' inserito: `2025/2026`
 
-- nome progetto: `pcto-certificati`
-- project ref: `dcxwxtyuqdzdyprlhfyt`
+## File applicativi gia' importanti
 
-### Deploy web
+### App / auth / admin
 
-- URL Vercel produzione: `https://pcto-certificati.vercel.app/`
+- `app/layout.tsx`
+- `app/page.tsx`
+- `app/entra/page.tsx`
+- `app/entra/actions.ts`
+- `app/auth/callback/route.ts`
+- `app/admin/layout.tsx`
+- `app/admin/page.tsx`
+- `app/admin/actions.ts`
+- `app/admin/scuole/page.tsx`
+- `app/admin/servizi/page.tsx`
+- `app/admin/servizi/[serviceId]/page.tsx`
+- `app/admin/coordinatori/page.tsx`
+- `proxy.ts`
 
-### Configurazione consigliata in Supabase
+### Componenti / utility
 
-Usare:
+- `components/admin/flash-message.tsx`
+- `components/admin/page-header.tsx`
+- `lib/auth/admin.ts`
+- `lib/utils/form-data.ts`
+- `lib/utils/request-url.ts`
 
-- `Site URL`: `https://pcto-certificati.vercel.app`
-- redirect consentiti:
-  - `https://pcto-certificati.vercel.app/auth/callback`
-  - `http://localhost:3000/auth/callback`
-  - `http://127.0.0.1:3000/auth/callback`
+### Supabase client
+
+- `lib/supabase/env.ts`
+- `lib/supabase/client.ts`
+- `lib/supabase/server.ts`
+- `lib/supabase/proxy.ts`
+- `lib/supabase/database.types.ts`
+
+### Script import
+
+- `scripts/import-services-from-csv.mjs`
+- `scripts/import-schools-from-xlsx.py`
+
+## Legacy da tenere come riferimento di dominio
+
+Cartella:
+
+- `vecchio_progetto/`
+
+Pattern gia' estratti dal legacy:
+
+- differenza tra certificato PCTO e volontariato
+- naming scuole con nome breve e nome formale
+- presenza di testi istituzionali per certificati ed email
+- uso di snapshot scuola/servizio dentro la richiesta
+
+Il file Excel scuole conferma il naming legacy:
+
+- `Scuola`
+- `denominazione_scuola`
+- `mail_certificati`
+
+## Git / remoto
+
+- repository Git inizializzato
+- remote `origin` = `https://github.com/giovaniperlapace/pcto-certificati.git`
+- branch principale = `main`
+- ultimo commit pushato: `23d5e37`
+
+Nota pratica:
+
+- il push `git push origin main` puo' fallire usando vecchie credenziali cached
+- workaround gia' usato con successo:
+  - `TOKEN=$(gh auth token) && git push "https://x-access-token:${TOKEN}@github.com/giovaniperlapace/pcto-certificati.git" main`
 
 ## Variabili ambiente attese
 
@@ -138,55 +304,29 @@ Variabili attese:
 
 Non committare mai segreti nuovi oltre quelli gia' presenti localmente.
 
-## File applicativi gia' importanti
+## Documenti da leggere prima di continuare
 
-### App / auth
+- `docs/piano-implementazione-mvp-certificati.md`
+- `primo_prompt.txt`
+- questo file
 
-- `app/layout.tsx`
-- `app/page.tsx`
-- `app/auth/callback/route.ts`
-- `proxy.ts`
+## Prossimi passi consigliati
 
-### Supabase client
+Ordine sensato:
 
-- `lib/supabase/env.ts`
-- `lib/supabase/client.ts`
-- `lib/supabase/server.ts`
-- `lib/supabase/proxy.ts`
-- `lib/supabase/database.types.ts`
+1. importare o creare i coordinatori mancanti
+2. collegare i coordinatori ai servizi in `service_coordinators`
+3. riattivare i servizi che devono essere `active`
+4. solo dopo passare alla Fase 4
 
-## Legacy da tenere come riferimento di dominio
+### Fase 4 prevista
 
-Cartella:
+Costruire il flusso pubblico studente per richiesta certificato:
 
-- `vecchio_progetto/`
-
-Pattern gia' estratti dal legacy:
-
-- differenza tra certificato PCTO e volontariato
-- naming scuole con nome breve e nome formale
-- presenza di testi istituzionali per certificati ed email
-- uso di snapshot scuola/servizio dentro la richiesta
-
-Non serve rileggere tutto il legacy ogni volta. Il piano in `docs/` riassume gia' le decisioni utili.
-
-## Prossima fase da sviluppare
-
-### Fase 3
-
-Costruire l'area admin per:
-
-- CRUD `schools`
-- CRUD `services`
-- CRUD `coordinators`
-- gestione relazione `service_coordinators`
-
-Obiettivi minimi della prossima sessione:
-
-- creare route admin
-- creare query server-side sicure
-- creare liste e form minimi
-- rispettare il vincolo: nessun servizio attivo senza coordinatore attivo
+- form pubblico senza login
+- validazione server-side
+- creazione `certificate_requests`
+- notifica email ai coordinatori del servizio
 
 ## Regole operative per le prossime sessioni
 
@@ -213,4 +353,6 @@ Ordine consigliato:
 5. eseguire `npm install`
 6. eseguire `npm run lint`
 7. eseguire `npm run build`
-8. partire dalla Fase 3
+8. verificare accesso Supabase CLI e `gh auth status`
+9. controllare lo stato dati reale su Supabase
+10. ripartire dagli import/coordinatori oppure dalla Fase 4, in base a cosa manca

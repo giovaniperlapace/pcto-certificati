@@ -1,7 +1,7 @@
 "use client";
 
 import { startTransition, useDeferredValue, useState } from "react";
-import { upsertSchoolAction } from "@/app/admin/actions";
+import { deleteSchoolAction, upsertSchoolAction } from "@/app/admin/actions";
 import {
   SortableHeaderButton,
   StatusBadge,
@@ -518,6 +518,16 @@ export function SchoolsAdminTable({ schools }: SchoolsAdminTableProps) {
           <TableFormActions
             onCancel={() => setEditor(null)}
             submitLabel={editingSchool ? "Aggiorna scuola" : "Salva scuola"}
+            destructiveAction={
+              editingSchool
+                ? {
+                    label: "Elimina scuola",
+                    confirmMessage:
+                      "Confermi l'eliminazione della scuola? L'operazione e' irreversibile.",
+                    formAction: deleteSchoolAction,
+                  }
+                : undefined
+            }
           />
         </form>
       </TableDialog>

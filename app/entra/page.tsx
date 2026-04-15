@@ -8,24 +8,39 @@ type SignInPageProps = {
     error?: string;
     next?: string;
     sent?: string;
+    access_mode?: string;
   }>;
 };
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
-  const [{ user, isAdmin }, params] = await Promise.all([
+  const [{ user, isAdmin, isCoordinator }, params] = await Promise.all([
     getAuthContext(),
     searchParams,
   ]);
 
-  if (user && isAdmin) {
+  const accessMode = params.access_mode === "admin" ? "admin" : "coordinator";
+
+  if (user && accessMode === "admin" && isAdmin) {
     redirect("/admin");
   }
 
-  const next = params.next?.startsWith("/") ? params.next : "/admin";
+  if (user && accessMode === "coordinator" && isCoordinator) {
+    redirect("/coordinatore");
+  }
+
+  const next = params.next?.startsWith("/")
+    ? params.next
+    : accessMode === "coordinator"
+      ? "/coordinatore"
+      : "/admin";
   const success =
     params.sent === "1"
       ? "Magic Link inviato. Apri l'email e completa l'accesso."
       : null;
+  const error =
+    params.error === "auth_callback"
+      ? "Impossibile completare l'accesso dal Magic Link. Riprova."
+      : params.error ?? null;
 
   return (
     <main className="min-h-screen bg-zinc-50 px-6 py-24">
@@ -35,18 +50,18 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             Accesso
           </p>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-950">
-            Entra nell&apos;area amministrativa.
+            Entra con Magic Link.
           </h1>
           <p className="text-base leading-7 text-zinc-600">
-            Usa il tuo indirizzo email per ricevere un Magic Link. L&apos;accesso
-            all&apos;area admin resta comunque limitato agli utenti che hanno il
-            ruolo `admin` in Supabase.
+            Puoi scegliere se accedere come coordinatore o come admin. L&apos;app
+            verifica il ruolo associato alla tua email prima di inviare il Magic
+            Link, cosi&apos; l&apos;esperienza resta coerente con i privilegi disponibili.
           </p>
         </div>
 
         <section className="w-full max-w-xl rounded-[2rem] border border-zinc-200 bg-white p-8 shadow-sm">
           <div className="space-y-6">
-            <FlashMessage error={params.error ?? null} success={success} />
+            <FlashMessage error={error} success={success} />
 
             <form action={sendMagicLinkAction} className="space-y-5">
               <input type="hidden" name="next" value={next} />
@@ -62,6 +77,24 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                   placeholder="info@giovaniperlapace.it"
                   className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
                 />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-zinc-800">
+                  Tipo di accesso
+                </span>
+                <select
+                  name="access_mode"
+                  defaultValue={accessMode}
+                  className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
+                >
+                  <option value="coordinator">Coordinatore</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <p className="text-xs leading-5 text-zinc-500">
+                  Scegli `Admin` solo se il coordinatore e&apos; stato abilitato anche
+                  con privilegi amministrativi.
+                </p>
               </label>
 
               <button

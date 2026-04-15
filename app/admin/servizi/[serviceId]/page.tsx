@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CoordinatorSearchSelect } from "@/components/admin/coordinator-search-select";
 import { FlashMessage } from "@/components/admin/flash-message";
 import { PageHeader } from "@/components/admin/page-header";
 import {
@@ -68,7 +69,11 @@ export default async function ServiceAssignmentsPage({
 
   const availableCoordinators = coordinators.filter(
     (coordinator) => !assignedCoordinatorIds.has(coordinator.id),
-  );
+  ).toSorted((left, right) => {
+    const leftLabel = `${left.last_name} ${left.first_name}`.trim();
+    const rightLabel = `${right.last_name} ${right.first_name}`.trim();
+    return leftLabel.localeCompare(rightLabel, "it", { sensitivity: "base" });
+  });
 
   return (
     <div className="space-y-8">
@@ -115,19 +120,7 @@ export default async function ServiceAssignmentsPage({
                 <span className="text-sm font-medium text-zinc-800">
                   Coordinatore
                 </span>
-                <select
-                  required
-                  name="coordinator_id"
-                  className="w-full rounded-2xl border border-zinc-300 px-4 py-3 text-sm outline-none focus:border-zinc-950"
-                >
-                  <option value="">Seleziona un coordinatore</option>
-                  {availableCoordinators.map((coordinator) => (
-                    <option key={coordinator.id} value={coordinator.id}>
-                      {coordinator.first_name} {coordinator.last_name} -{" "}
-                      {coordinator.email}
-                    </option>
-                  ))}
-                </select>
+                <CoordinatorSearchSelect coordinators={availableCoordinators} />
               </label>
 
               <label className="flex items-center gap-3 rounded-2xl border border-zinc-200 px-4 py-3 text-sm text-zinc-700">

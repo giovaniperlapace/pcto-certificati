@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { useEffect } from "react";
 import { useEffectEvent } from "react";
 
@@ -300,12 +300,42 @@ export function TableCheckboxField({
 export function TableFormActions({
   onCancel,
   submitLabel,
+  destructiveAction,
 }: {
   onCancel: () => void;
   submitLabel: string;
+  destructiveAction?: {
+    label: string;
+    confirmMessage: string;
+    formAction: (formData: FormData) => void | Promise<void>;
+  };
 }) {
+  function handleDestructiveClick(event: MouseEvent<HTMLButtonElement>) {
+    if (!destructiveAction) {
+      return;
+    }
+
+    const isConfirmed = window.confirm(destructiveAction.confirmMessage);
+
+    if (!isConfirmed) {
+      event.preventDefault();
+    }
+  }
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-3 border-t border-zinc-200 pt-5">
+      {destructiveAction ? (
+        <button
+          type="submit"
+          formAction={destructiveAction.formAction}
+          formNoValidate
+          onClick={handleDestructiveClick}
+          className="mr-auto rounded-full border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
+        >
+          {destructiveAction.label}
+        </button>
+      ) : null}
+
       <TableActionButton onClick={onCancel}>Annulla</TableActionButton>
       <button
         type="submit"

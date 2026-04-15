@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/admin";
 import {
+  createAdminClient,
+  ensureAuthUserForEmail,
+} from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import {
   readBoolean,
   readOptionalId,
   readOptionalString,
@@ -28,7 +33,7 @@ function handleActionError(error: unknown, fallbackMessage: string) {
 }
 
 export async function signOutAction() {
-  const { supabase } = await assertAdmin();
+  const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/");
 }
@@ -84,12 +89,51 @@ export async function upsertSchoolAction(formData: FormData) {
   }
 }
 
+export async function deleteSchoolAction(formData: FormData) {
+  const redirectTo = readRedirectPath(formData, "/admin/scuole");
+
+  try {
+    const { supabase } = await assertAdmin();
+    const id = readRequiredString(formData, "id");
+
+    const { error } = await supabase.from("schools").delete().eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/scuole");
+    redirectWithMessage(redirectTo, "success", "Scuola eliminata.");
+  } catch (error) {
+    redirectWithMessage(
+      redirectTo,
+      "error",
+      handleActionError(error, "Impossibile eliminare la scuola."),
+    );
+  }
+}
+
 export async function upsertCoordinatorAction(formData: FormData) {
   const redirectTo = readRedirectPath(formData, "/admin/coordinatori");
 
   try {
     const { supabase } = await assertAdmin();
     const id = readOptionalId(formData, "id");
+    const grantAdminAccess = readBoolean(formData, "grant_admin_access");
+    const adminSupabase = createAdminClient();
+
+    const existingCoordinator = id
+      ? await supabase
+          .from("coordinators")
+          .select("id, auth_user_id, email")
+          .eq("id", id)
+          .single()
+      : null;
+
+    if (existingCoordinator?.error) {
+      throw existingCoordinator.error;
+    }
 
     const payload = {
       first_name: readRequiredString(formData, "first_name"),
@@ -97,16 +141,62 @@ export async function upsertCoordinatorAction(formData: FormData) {
       email: readRequiredString(formData, "email"),
       phone: readOptionalString(formData, "phone"),
       is_active: readBoolean(formData, "is_active"),
+      auth_user_id: await ensureAuthUserForEmail(
+        adminSupabase,
+        readRequiredString(formData, "email"),
+        existingCoordinator?.data?.auth_user_id ?? null,
+      ),
     };
 
     const query = id
-      ? supabase.from("coordinators").update(payload).eq("id", id)
-      : supabase.from("coordinators").insert(payload);
+      ? supabase
+          .from("coordinators")
+          .update(payload)
+          .eq("id", id)
+          .select("id, auth_user_id")
+          .single()
+      : supabase
+          .from("coordinators")
+          .insert(payload)
+          .select("id, auth_user_id")
+          .single();
 
-    const { error } = await query;
+    const { data: savedCoordinator, error } = await query;
 
     if (error) {
       throw error;
+    }
+
+    if (!savedCoordinator?.auth_user_id) {
+      throw new Error(
+        "Impossibile collegare il coordinatore a un utente auth per il Magic Link.",
+      );
+    }
+
+    if (grantAdminAccess) {
+      const { error: roleError } = await supabase.from("user_roles").upsert(
+        {
+          user_id: savedCoordinator.auth_user_id,
+          role: "admin",
+        },
+        {
+          onConflict: "user_id,role",
+        },
+      );
+
+      if (roleError) {
+        throw roleError;
+      }
+    } else {
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", savedCoordinator.auth_user_id)
+        .eq("role", "admin");
+
+      if (roleError) {
+        throw roleError;
+      }
     }
 
     revalidatePath("/admin");
@@ -122,6 +212,53 @@ export async function upsertCoordinatorAction(formData: FormData) {
       redirectTo,
       "error",
       handleActionError(error, "Impossibile salvare il coordinatore."),
+    );
+  }
+}
+
+export async function deleteCoordinatorAction(formData: FormData) {
+  const redirectTo = readRedirectPath(formData, "/admin/coordinatori");
+
+  try {
+    const { supabase } = await assertAdmin();
+    const id = readRequiredString(formData, "id");
+    const { data: coordinator, error: coordinatorError } = await supabase
+      .from("coordinators")
+      .select("auth_user_id")
+      .eq("id", id)
+      .single();
+
+    if (coordinatorError) {
+      throw coordinatorError;
+    }
+
+    if (coordinator.auth_user_id) {
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", coordinator.auth_user_id)
+        .eq("role", "admin");
+
+      if (roleError) {
+        throw roleError;
+      }
+    }
+
+    const { error } = await supabase.from("coordinators").delete().eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/coordinatori");
+    revalidatePath("/admin/servizi");
+    redirectWithMessage(redirectTo, "success", "Coordinatore eliminato.");
+  } catch (error) {
+    redirectWithMessage(
+      redirectTo,
+      "error",
+      handleActionError(error, "Impossibile eliminare il coordinatore."),
     );
   }
 }
@@ -167,6 +304,31 @@ export async function upsertServiceAction(formData: FormData) {
       redirectTo,
       "error",
       handleActionError(error, "Impossibile salvare il servizio."),
+    );
+  }
+}
+
+export async function deleteServiceAction(formData: FormData) {
+  const redirectTo = readRedirectPath(formData, "/admin/servizi");
+
+  try {
+    const { supabase } = await assertAdmin();
+    const id = readRequiredString(formData, "id");
+
+    const { error } = await supabase.from("services").delete().eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/servizi");
+    redirectWithMessage(redirectTo, "success", "Servizio eliminato.");
+  } catch (error) {
+    redirectWithMessage(
+      redirectTo,
+      "error",
+      handleActionError(error, "Impossibile eliminare il servizio."),
     );
   }
 }

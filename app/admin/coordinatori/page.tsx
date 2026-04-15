@@ -21,9 +21,11 @@ export default async function CoordinatorsPage({
   const [
     { data: coordinators, error: coordinatorsError },
     { data: assignments, error: assignmentsError },
+    { data: adminRoleRows, error: adminRoleRowsError },
   ] = await Promise.all([
     supabase.from("coordinators").select("*").order("last_name", { ascending: true }),
     supabase.from("service_coordinators").select("coordinator_id, service_id"),
+    supabase.from("user_roles").select("user_id").eq("role", "admin"),
   ]);
 
   if (coordinatorsError) {
@@ -32,6 +34,10 @@ export default async function CoordinatorsPage({
 
   if (assignmentsError) {
     throw assignmentsError;
+  }
+
+  if (adminRoleRowsError) {
+    throw adminRoleRowsError;
   }
 
   const assignedServicesCountByCoordinator = assignments.reduce<
@@ -43,9 +49,13 @@ export default async function CoordinatorsPage({
     return accumulator;
   }, {});
 
+  const adminUserIds = new Set((adminRoleRows ?? []).map((row) => row.user_id));
+
   const coordinatorsWithCounts = coordinators.map((coordinator) => ({
     ...coordinator,
     assignedServicesCount: assignedServicesCountByCoordinator[coordinator.id] ?? 0,
+    grantAdminAccess:
+      coordinator.auth_user_id !== null && adminUserIds.has(coordinator.auth_user_id),
   }));
 
   return (

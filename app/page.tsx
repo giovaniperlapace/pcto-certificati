@@ -30,7 +30,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <FlashMessage
           error={
             params.auth === "forbidden"
-              ? "L&apos;utente autenticato non ha il ruolo admin in Supabase."
+              ? "L&apos;utente autenticato non ha il profilo richiesto per questa area."
               : null
           }
         />

@@ -45,22 +45,48 @@ Gia' fatto:
 
 ### Fase 3 completata
 
-Area admin minima completata e gia' pushata su GitHub.
+Area admin e accessi interni completati in una versione gia' usabile e pushata su GitHub.
 
 Gia' presente:
 
 - login Magic Link in `app/entra/`
-- guard admin server-side in `lib/auth/admin.ts`
+- scelta del tipo di accesso nel form login: `coordinatore` oppure `admin`
+- valore predefinito del form login = `coordinatore`
+- redirect post-login coerente:
+  - admin -> `/admin`
+  - coordinatore -> `/coordinatore`
+- callback Magic Link in `app/auth/callback/route.ts` con riallineamento automatico di `coordinators.auth_user_id` quando l'email coincide ma l'id auth e' cambiato
+- guard admin e coordinatore server-side in `lib/auth/admin.ts`
 - layout admin con navigazione e logout
 - dashboard admin
+- dashboard coordinatore minima in `app/coordinatore/page.tsx`
 - CRUD scuole
 - CRUD servizi
 - CRUD coordinatori
+- visualizzazione anagrafiche admin in tabelle piu' ricche, con filtri, ordinamento e modal di inserimento/modifica
+- pulsante rosso di eliminazione con conferma nelle modal di modifica di scuole, servizi e coordinatori
 - gestione relazione `service_coordinators`
+- possibilita' di promuovere un coordinatore ad admin dalla UI coordinatori
+- sincronizzazione `auth.users` + `user_roles` quando un coordinatore riceve o perde il privilegio admin
+- logout funzionante sia da area admin sia da area coordinatore
 
-Commit rilevante:
+Commit rilevanti:
 
 - `23d5e37` `Build admin management area`
+- `8578648` `Refactor admin anagrafiche to table-based management UI`
+- `ff72535` `Improve admin tables and role-based access flows`
+
+### Fase 4 non ancora iniziata davvero
+
+Non e' ancora stato costruito il flusso pubblico studente end-to-end.
+
+Ad oggi non ci sono ancora:
+
+- form pubblico finale per richiesta certificato
+- creazione completa di `certificate_requests` da UI pubblica
+- workflow coordinatore su richieste reali
+- generazione PDF
+- invio email finale dei certificati
 
 ## Stato dati reale su Supabase
 
@@ -79,6 +105,7 @@ Note importanti:
 - questo e' voluto: il database non consente servizi attivi senza almeno un coordinatore attivo collegato
 - le scuole sono state importate con `send_certificate_to_school_by_default = false`
 - le scuole sono state importate con `send_certificate_to_teacher_by_default = false`
+- `certificate_requests` e' ancora vuota, quindi i flussi di richiesta non sono ancora stati testati su dati reali
 
 ## Import gia' eseguiti
 
@@ -161,6 +188,9 @@ Situazione attuale:
 
 - la probe via `signInWithOtp` ora risponde senza errore
 - quindi il Magic Link al momento non risulta bloccato lato API Supabase
+- il callback ora gestisce correttamente il redirect finale leggendo e decodificando i cookie di `next`
+- login admin riuscito -> redirect diretto a `/admin`
+- login coordinatore riuscito -> redirect diretto a `/coordinatore`
 
 Attenzione:
 
@@ -176,6 +206,23 @@ Questo significa:
 
 - per accedere a `/admin` serve una riga in `user_roles` collegata all'id dell'utente auth
 - creare un coordinatore con la stessa email non basta a renderlo admin
+- per concedere accesso admin dall'app, nella modal coordinatore va attivata l'opzione che abilita anche l'accesso admin
+
+### Ruoli coordinatore
+
+`coordinators` usa il campo `auth_user_id` per legare il coordinatore all'utente Supabase Auth.
+
+Questo significa:
+
+- per accedere a `/coordinatore` serve un record in `coordinators` attivo
+- idealmente `coordinators.auth_user_id` deve puntare all'utente reale in `auth.users`
+- se l'utente auth e il coordinatore hanno la stessa email ma `auth_user_id` e' vecchio, il callback ora prova a riallinearlo automaticamente
+
+Caso gia' incontrato e risolto:
+
+- `steorlando@gmail.com` aveva un `auth_user_id` non allineato
+- il record e' stato corretto su Supabase
+- il codice ora e' piu' robusto per evitare che il problema si ripresenti
 
 ## Struttura Supabase gia' presente
 
@@ -234,10 +281,13 @@ Questo significa:
 - `app/admin/servizi/page.tsx`
 - `app/admin/servizi/[serviceId]/page.tsx`
 - `app/admin/coordinatori/page.tsx`
+- `app/coordinatore/page.tsx`
 - `proxy.ts`
 
 ### Componenti / utility
 
+- `components/admin/admin-table-pattern.tsx`
+- `components/admin/coordinator-search-select.tsx`
 - `components/admin/flash-message.tsx`
 - `components/admin/page-header.tsx`
 - `lib/auth/admin.ts`
@@ -247,6 +297,7 @@ Questo significa:
 ### Supabase client
 
 - `lib/supabase/env.ts`
+- `lib/supabase/admin.ts`
 - `lib/supabase/client.ts`
 - `lib/supabase/server.ts`
 - `lib/supabase/proxy.ts`
@@ -254,6 +305,7 @@ Questo significa:
 
 ### Script import
 
+- `scripts/import-coordinators-from-csv.mjs`
 - `scripts/import-services-from-csv.mjs`
 - `scripts/import-schools-from-xlsx.py`
 
@@ -281,13 +333,20 @@ Il file Excel scuole conferma il naming legacy:
 - repository Git inizializzato
 - remote `origin` = `https://github.com/giovaniperlapace/pcto-certificati.git`
 - branch principale = `main`
-- ultimo commit pushato: `23d5e37`
+- ultimo commit pushato: `ff72535`
 
 Nota pratica:
 
 - il push `git push origin main` puo' fallire usando vecchie credenziali cached
 - workaround gia' usato con successo:
   - `TOKEN=$(gh auth token) && git push "https://x-access-token:${TOKEN}@github.com/giovaniperlapace/pcto-certificati.git" main`
+
+Nota pratica 2:
+
+- `.gitignore` ora esclude file locali non da pushare come:
+  - `.codex/`
+  - `__pycache__/`
+  - `*.pyc`
 
 ## Variabili ambiente attese
 
@@ -306,7 +365,7 @@ Non committare mai segreti nuovi oltre quelli gia' presenti localmente.
 
 ## Documenti da leggere prima di continuare
 
-- `docs/piano-implementazione-mvp-certificati.md`
+- `piano-implementazione-mvp-certificati.md`
 - `primo_prompt.txt`
 - questo file
 
@@ -317,7 +376,8 @@ Ordine sensato:
 1. importare o creare i coordinatori mancanti
 2. collegare i coordinatori ai servizi in `service_coordinators`
 3. riattivare i servizi che devono essere `active`
-4. solo dopo passare alla Fase 4
+4. testare bene l'area coordinatore con assegnazioni reali
+5. solo dopo passare alla Fase 4
 
 ### Fase 4 prevista
 
@@ -328,12 +388,29 @@ Costruire il flusso pubblico studente per richiesta certificato:
 - creazione `certificate_requests`
 - notifica email ai coordinatori del servizio
 
+Prima di iniziare davvero la Fase 4 conviene verificare:
+
+- almeno un coordinatore attivo assegnato a servizi attivi
+- accesso coordinatore testato con dati reali
+- naming finale dei campi del form pubblico
+- testi email minimi da inviare ai coordinatori quando arriva una richiesta
+
+Possibile ordine tecnico per la Fase 4:
+
+1. pagina pubblica richiesta certificato
+2. server action per validazione e insert
+3. salvataggio snapshot scuola/servizio nella richiesta
+4. evento iniziale in `request_events`
+5. notifica email ai coordinatori del servizio
+6. prima pagina coordinatore per vedere e filtrare le richieste
+
 ## Regole operative per le prossime sessioni
 
 - minimizzare i diff
 - non introdurre dipendenze inutili
 - tenere la logica sensibile lato server
 - riusare i tipi generati in `lib/supabase/database.types.ts`
+- quando possibile, mantenere la UI admin nel pattern tabelle/modal gia' introdotto invece di tornare a form sparsi nella pagina
 - dopo modifiche significative eseguire sempre:
   - `npm run lint`
   - `npm run build`
@@ -348,7 +425,7 @@ Ordine consigliato:
 
 1. clonare repo
 2. leggere questo file
-3. leggere `docs/piano-implementazione-mvp-certificati.md`
+3. leggere `piano-implementazione-mvp-certificati.md`
 4. verificare `.env.local`
 5. eseguire `npm install`
 6. eseguire `npm run lint`

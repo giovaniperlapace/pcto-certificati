@@ -1,0 +1,158 @@
+Obiettivo
+
+Crea un piano di implementazione step-by-step per una web app MVP che generi certificati in PDF e li invii via email agli studenti delle scuole superiori che hanno svolto attività di volontariato o PCTO con la Comunità di Sant’Egidio durante il corrente anno scolastico.
+
+Contesto / Stato attuale
+
+Hai accesso al contesto del repository.
+Stack target: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Supabase.
+Nel progetto è presente anche una cartella `R` contenente script che possono fornire contesto utile di dominio, strutture dati, testi o logiche per la generazione dei certificati. Esamina questi script prima di pianificare e ricava eventuali pattern o requisiti utili.
+Non implementare nulla per ora. Non modificare file. Non generare codice, salvo mini snippet strettamente necessari a chiarire il piano.
+
+Ambito prodotto per l’MVP
+
+L’app deve supportare:
+- Un flusso pubblico per lo studente che richiede il certificato senza autenticazione
+- Un’area admin per gestire Scuole, Servizi e Coordinatori
+- Un’area coordinatore autenticata tramite Supabase Magic Link
+- Un flusso di revisione delle richieste in cui i coordinatori approvano o rigettano le richieste degli studenti
+- Generazione del certificato PDF dopo l’approvazione
+- Notifiche email:
+  - notificare il/i coordinatore/i quando viene inviata una nuova richiesta
+  - inviare il certificato allo studente dopo l’approvazione
+  - quando disponibile e appropriato, inviarlo anche alla scuola e al docente di riferimento
+
+Modello dati di base (assunzioni iniziali)
+
+Pianifica almeno attorno a queste entità e proponi eventuali campi/tabelle aggiuntivi se utili:
+- Studenti / richiedenti certificato
+  - nome
+  - cognome
+  - classe
+  - scuola
+  - email
+- Scuole
+  - nome della scuola
+  - email della scuola
+  - nome del docente di riferimento
+  - email del docente di riferimento
+- Servizi
+  - nome del servizio
+  - giorno e orario del servizio
+  - indirizzo del servizio
+- Coordinatori
+  - nome
+  - cognome
+  - telefono (opzionale)
+  - email (obbligatoria)
+
+Vincoli importanti sulle relazioni:
+- Ogni Servizio deve avere almeno un Coordinatore collegato
+- Un Servizio può avere più Coordinatori
+- Un Coordinatore può essere collegato a più Servizi
+
+Requisiti del piano
+
+Produci un piano di implementazione ordinato, dalle fondamenta fino a un MVP pronto al rilascio, seguendo la sequenza più sensata.
+Il piano deve essere pratico e orientato all’esecuzione, non generico.
+Usa i pattern, i nomi, l’architettura e lo stile di codice già presenti in questo repository.
+Quando l’implementazione inizierà, minimizza i diff: tocca solo i file realmente necessari.
+Non aggiungere nuove dipendenze se non strettamente necessario; se in seguito ne consigli qualcuna, giustificalo esplicitamente nel piano.
+
+Il piano deve coprire, in ordine:
+
+1. Discovery e analisi del repository
+- Ispeziona la struttura esistente dell’app e le convenzioni usate
+- Esamina la cartella `R` e riassumi cosa è riutilizzabile o utile
+- Identifica eventuali pattern già esistenti per auth, CRUD admin, invio email, generazione PDF, validazione e uso di Supabase
+- Identifica se esistono già pattern UI condivisi, componenti tabella, componenti form o utility server da riusare
+
+2. Modellazione del dominio
+- Definisci lo schema Supabase raccomandato per l’MVP
+- Chiarisci quali tabelle sono core e quali tabelle ponte sono necessarie
+- Proponi campi aggiuntivi utili come stato, timestamp, metadati di approvazione, metadati del certificato, anno scolastico e campi di audit
+- Chiarisci se “studente” debba essere un’entità persistente o se la richiesta debba essere l’entità principale
+- Definisci gli stati del lifecycle di richiesta/approvazione
+
+3. Progettazione autenticazione e autorizzazione
+- Invio della richiesta studente senza login
+- Login coordinatore tramite Supabase Magic Link
+- Modello di accesso admin
+- Strategia RLS ad alto livello
+- Permessi per utenti pubblici, coordinatori e admin
+
+4. Flussi principali utente
+- Lo studente invia una richiesta di certificato
+- Il coordinatore riceve una notifica
+- Il coordinatore vede le richieste pendenti e approva/rifiuta
+- Il certificato viene generato e inviato dopo l’approvazione
+- Invio opzionale di copie a scuola e docente se i dati sono presenti
+- L’admin gestisce Scuole, Servizi, Coordinatori e le loro relazioni
+
+5. Struttura dell’app
+- Raccomanda una struttura delle route per App Router
+- Separa area pubblica, area coordinatore e area admin
+- Suggerisci le pagine principali, le server action / route handler e i componenti riutilizzabili necessari
+- Evidenzia dove dovrebbe vivere la logica server-side sicura e non esposta
+
+6. Strategia email e PDF
+- Proponi il miglior approccio MVP per generare certificati PDF con questo stack
+- Proponi il miglior approccio MVP per le email transazionali
+- Identifica quali dati devono comparire nel certificato
+- Chiarisci dove dovrebbero vivere i template del certificato e delle email
+- Cita eventuali aspetti async/retry da prevedere, anche se semplificati per l’MVP
+
+7. Dashboard admin e coordinatore
+- Definisci le capacità CRUD minime per l’admin
+- Definisci le capacità minime della dashboard coordinatore
+- Includi filtri/ricerca/viste per stato se importanti per l’MVP
+- Menziona edge case come la presenza di più coordinatori per uno stesso servizio
+
+8. Validazione e business rules
+- Campi obbligatori
+- Gestione richieste duplicate
+- Garanzia che ogni servizio abbia sempre almeno un coordinatore
+- Gestione dell’assenza di email di scuola/docente
+- Gestione delle richieste rigettate e di eventuali reinvii
+- Scoping per anno scolastico
+
+9. Sicurezza, privacy e compliance
+- Gestione dei dati personali di minori/studenti delle superiori
+- Gestione sicura delle email
+- Decisioni su accesso/storage sicuro dei file
+- Considerazioni minime di logging/audit per l’MVP
+- Prevenzione abusi sul form pubblico
+
+10. Piano di test e QA
+- Cosa testare con unit test, integration test e verifica manuale
+- Scenari critici di accettazione
+- Strategia consigliata per seed data in locale/dev
+
+11. Fasi di consegna
+- Suddividi l’implementazione in milestone/fasi chiare
+- Ogni fase deve produrre un checkpoint utilizzabile
+- Ordina le fasi in modo da ridurre il rischio e sbloccare in anticipo il lavoro successivo
+
+Formato di output
+
+Restituisci solo un piano strutturato in italiano, non codice.
+Usa esattamente questa struttura:
+
+- Panoramica
+- Assunzioni
+- Modello dati raccomandato
+- Fasi di implementazione ordinate
+- Rischi / decisioni aperte
+- Checklist di accettazione MVP
+
+Per ogni fase di implementazione, includi:
+- obiettivo
+- attività principali
+- dipendenze
+- output / criteri di completamento
+
+Note / Assunzioni
+
+- Tratta questo come un piano MVP, ma includi brevi note dove una futura v2 probabilmente estenderebbe l’architettura.
+- Sii deciso e fai assunzioni ragionevoli invece di fare domande, salvo che manchi un dettaglio che cambierebbe materialmente il piano.
+- Non implementare ancora.

@@ -1,0 +1,2 @@
+-- Seed intenzionalmente vuoto.
+-- I dati iniziali dell'MVP saranno caricati tramite dashboard admin o future seed dedicate.

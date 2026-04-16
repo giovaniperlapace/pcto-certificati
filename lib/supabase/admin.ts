@@ -84,3 +84,38 @@ export async function ensureAuthUserForEmail(
 
   return data.user.id;
 }
+
+export async function listAuthUsersByIds(
+  supabase: AdminClient,
+  userIds: string[],
+) {
+  const pendingIds = new Set(userIds);
+  const matchedUsers: { id: string; email?: string | null }[] = [];
+  let page = 1;
+
+  while (pendingIds.size > 0) {
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    data.users.forEach((user) => {
+      if (pendingIds.has(user.id)) {
+        matchedUsers.push(user);
+        pendingIds.delete(user.id);
+      }
+    });
+
+    if (data.users.length < 200) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return matchedUsers;
+}

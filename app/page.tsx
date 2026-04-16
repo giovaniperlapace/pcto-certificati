@@ -21,9 +21,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             Gestione certificati PCTO e volontariato.
           </h1>
           <p className="max-w-3xl text-base leading-7 text-zinc-600 sm:text-lg">
-            Base tecnica e fondazione Supabase sono pronte. L&apos;area admin e&apos;
-            il prossimo perno operativo per caricare scuole, servizi e
-            coordinatori.
+            Il flusso pubblico per raccogliere richieste di certificato e&apos;
+            pronto a dialogare con anagrafiche, coordinatori e Supabase. Area
+            admin e accesso interno restano disponibili per la gestione operativa.
           </p>
         </div>
 
@@ -37,8 +37,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/admin"
+            href="/richiedi-certificato"
             className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
+          >
+            Richiedi un certificato
+          </Link>
+          <Link
+            href="/admin"
+            className="rounded-full border border-zinc-200 bg-white px-5 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
           >
             Vai all&apos;area admin
           </Link>

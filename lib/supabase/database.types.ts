@@ -33,13 +33,13 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by_coordinator_id: string | null
           school_emailed_at: string | null
-          school_id: string
+          school_id: string | null
           school_name_snapshot: string
           school_year_id: string
           send_to_school: boolean
           send_to_teacher: boolean
           service_address_snapshot: string
-          service_id: string
+          service_id: string | null
           service_name_snapshot: string
           service_schedule_snapshot: string
           status: Database["public"]["Enums"]["request_status"]
@@ -73,13 +73,13 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by_coordinator_id?: string | null
           school_emailed_at?: string | null
-          school_id: string
+          school_id?: string | null
           school_name_snapshot: string
           school_year_id: string
           send_to_school?: boolean
           send_to_teacher?: boolean
           service_address_snapshot: string
-          service_id: string
+          service_id?: string | null
           service_name_snapshot: string
           service_schedule_snapshot: string
           status?: Database["public"]["Enums"]["request_status"]
@@ -113,13 +113,13 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by_coordinator_id?: string | null
           school_emailed_at?: string | null
-          school_id?: string
+          school_id?: string | null
           school_name_snapshot?: string
           school_year_id?: string
           send_to_school?: boolean
           send_to_teacher?: boolean
           service_address_snapshot?: string
-          service_id?: string
+          service_id?: string | null
           service_name_snapshot?: string
           service_schedule_snapshot?: string
           status?: Database["public"]["Enums"]["request_status"]
@@ -500,7 +500,12 @@ export type Database = {
       app_role: "admin"
       certificate_type: "pcto" | "volontariato"
       email_delivery_status: "pending" | "sent" | "failed"
-      email_recipient_type: "coordinator" | "student" | "school" | "teacher"
+      email_recipient_type:
+        | "coordinator"
+        | "student"
+        | "school"
+        | "teacher"
+        | "admin"
       request_actor_type: "system" | "coordinator" | "admin"
       request_status:
         | "submitted"
@@ -639,7 +644,13 @@ export const Constants = {
       app_role: ["admin"],
       certificate_type: ["pcto", "volontariato"],
       email_delivery_status: ["pending", "sent", "failed"],
-      email_recipient_type: ["coordinator", "student", "school", "teacher"],
+      email_recipient_type: [
+        "coordinator",
+        "student",
+        "school",
+        "teacher",
+        "admin",
+      ],
       request_actor_type: ["system", "coordinator", "admin"],
       request_status: [
         "submitted",

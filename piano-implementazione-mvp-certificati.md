@@ -19,6 +19,16 @@ Realizzare una web app MVP che:
 - Tailwind CSS 4
 - Supabase
 
+## Stato avanzamento al 2026-04-16
+
+- Fase 1 completata
+- Fase 2 completata
+- Fase 3 completata
+- Fase 4 completata in una prima versione usabile
+- Fase 5 avviata e gia' operativa per la revisione base
+- Fase 6 non ancora iniziata
+- Fase 7 non ancora iniziata
+
 ## Regole di progetto
 
 - implementare solo il necessario per l'MVP
@@ -466,6 +476,20 @@ Permettere all'admin di caricare e mantenere i dati master.
 
 Raccogliere richieste valide senza login.
 
+#### Stato attuale
+
+Gia' realizzato in una prima versione:
+
+- pagina pubblica di richiesta
+- validazione server-side
+- creazione `certificate_requests`
+- snapshot scuola e servizio dentro la richiesta
+- supporto a scuola o servizio non presenti in elenco
+- controlli anti-duplicato
+- misure anti-abuso minime
+- registrazione eventi in `request_events`
+- registrazione delle notifiche in `email_deliveries`
+
 #### Attività principali
 
 - costruire il form pubblico
@@ -490,13 +514,36 @@ Raccogliere richieste valide senza login.
 
 Permettere revisione e decisione sulle richieste.
 
-#### Attività principali
+#### Stato attuale
+
+Gia' realizzato in una prima versione operativa:
+
+- dashboard con viste per stato
+- filtro per servizio assegnato
+- lista richieste limitata al perimetro del coordinatore
+- dettaglio richiesta
+- modifica dei dati prima della decisione
+- approvazione e rifiuto server-side
+- controllo di concorrenza con verifica di `updated_at`
+- timeline eventi e visibilita' delle consegne registrate
+
+Restano da chiudere nelle fasi successive:
+
+- generazione reale del PDF
+- download del certificato dal dettaglio richiesta
+- invio finale a studente, scuola e docente
+- transizione finale a `completed` o `delivery_failed`
+
+#### Attività principali (ho fatto qualche modifica rispetto alla prima versione del piano)
 
 - dashboard con viste per stato
 - lista richieste filtrata sui soli servizi assegnati
-- ricerca per nome, scuola, servizio
 - dettaglio richiesta
-- azioni approva e rigetta
+- Possibilità di modificare i dati inseriti nella richiesta prima di generare il certificato in pdf
+- Funzione per approvare la richiesta e
+	- generare ed eventualmente scaricare il certificato
+	- Inviare il certificato solo allo studente o anche alla scuola/prof di riferimento se disponibile il dato
+	- Funzione per rifiutare la richiesta, spiegando allo studente il motivo
 - gestione concorrenza tra più coordinatori sullo stesso servizio
 
 #### Dipendenze
@@ -606,7 +653,7 @@ Creare seed locali con:
 - Magic Link attivo
 - CRUD admin funzionanti
 - form pubblico funzionante
-- notifica coordinatori funzionante
+- registrazione notifica coordinatori funzionante
 - dashboard coordinatore funzionante
 - approvazione e rigetto funzionanti
 - generazione PDF funzionante

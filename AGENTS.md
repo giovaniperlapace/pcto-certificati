@@ -59,7 +59,7 @@ Gia' presente:
 - guard admin e coordinatore server-side in `lib/auth/admin.ts`
 - layout admin con navigazione e logout
 - dashboard admin
-- dashboard coordinatore minima in `app/coordinatore/page.tsx`
+- prima dashboard coordinatore in `app/coordinatore/page.tsx`
 - CRUD scuole
 - CRUD servizi
 - CRUD coordinatori
@@ -76,28 +76,72 @@ Commit rilevanti:
 - `8578648` `Refactor admin anagrafiche to table-based management UI`
 - `ff72535` `Improve admin tables and role-based access flows`
 
-### Fase 4 non ancora iniziata davvero
+### Fase 4 completata in una prima versione usabile
 
-Non e' ancora stato costruito il flusso pubblico studente end-to-end.
+Il flusso pubblico studente end-to-end ora esiste in una prima versione gia'
+utilizzabile.
 
-Ad oggi non ci sono ancora:
+Gia' presente:
 
-- form pubblico finale per richiesta certificato
-- creazione completa di `certificate_requests` da UI pubblica
-- workflow coordinatore su richieste reali
-- generazione PDF
-- invio email finale dei certificati
+- pagina pubblica in `app/richiedi-certificato/`
+- validazione server-side in `app/richiedi-certificato/actions.ts`
+- creazione di `certificate_requests` da UI pubblica
+- salvataggio snapshot di scuola e servizio nella richiesta
+- gestione selezione da anagrafiche attive
+- supporto a scuola o servizio non presenti in elenco tramite inserimento manuale
+- controlli anti-duplicato
+- misure anti-abuso minime:
+  - honeypot
+  - hash IP
+  - rate limit base sui submit ravvicinati
+- evento iniziale in `request_events`
+- registrazione notifiche in `email_deliveries` per coordinatori o admin
+- pagina di conferma submit in `app/richiedi-certificato/conferma/`
+
+### Fase 5 avviata e gia' usabile per la revisione base
+
+L'area coordinatore ora consente una prima revisione reale delle richieste,
+ma non chiude ancora il ciclo PDF/email finale.
+
+Gia' presente:
+
+- layout coordinatore dedicato in `app/coordinatore/layout.tsx`
+- dashboard coordinatore con viste per stato in `app/coordinatore/page.tsx`
+- filtro per servizio assegnato
+- lista richieste limitata ai soli servizi del coordinatore
+- dettaglio richiesta in `app/coordinatore/richieste/[id]/page.tsx`
+- possibilita' di modificare i dati della richiesta prima della decisione
+- azioni server-side per:
+  - salvataggio modifica
+  - approvazione
+  - rifiuto con motivazione
+- timeline eventi richiesta
+- visibilita' delle `email_deliveries` gia' registrate
+- controllo concorrenza tra coordinatori con verifica di `updated_at`
+- blocco chiusura doppia consentendo approva/rifiuta solo su richieste `submitted`
+
+Non ancora presente in Fase 5 / da completare nella fase successiva:
+
+- generazione reale del PDF
+- download del certificato dal dettaglio richiesta
+- invio finale email a studente, scuola e docente
+- transizione finale a `completed` o `delivery_failed`
 
 ## Stato dati reale su Supabase
 
-Alla data attuale risultano:
+Alla data del `2026-04-16` risultano:
 
 - `services`: 69
-- `schools`: 41
-- `coordinators`: 2
-- `service_coordinators`: 0
-- `user_roles`: 2
-- `certificate_requests`: 0
+- `services` attivi: 4
+- `schools`: 40
+- `schools` attive: 40
+- `coordinators`: 31
+- `coordinators` attivi: 31
+- `service_coordinators`: 4
+- `services` attivi con almeno un coordinatore attivo assegnato: 4
+- `user_roles`: 1
+- `certificate_requests`: 1
+- `certificate_requests` in `approved`: 1
 
 Note importanti:
 
@@ -105,7 +149,8 @@ Note importanti:
 - questo e' voluto: il database non consente servizi attivi senza almeno un coordinatore attivo collegato
 - le scuole sono state importate con `send_certificate_to_school_by_default = false`
 - le scuole sono state importate con `send_certificate_to_teacher_by_default = false`
-- `certificate_requests` e' ancora vuota, quindi i flussi di richiesta non sono ancora stati testati su dati reali
+- esiste gia' almeno una richiesta reale inserita e approvata
+- i flussi pubblico e coordinatore sono quindi gia' stati provati su dati reali almeno in un caso
 
 ## Import gia' eseguiti
 
@@ -247,6 +292,7 @@ Caso gia' incontrato e risolto:
 ### File chiave Supabase
 
 - `supabase/migrations/20260415124941_init_mvp_schema.sql`
+- `supabase/migrations/20260416094000_allow_manual-school-and-service-submissions.sql`
 - `supabase/config.toml`
 - `lib/supabase/database.types.ts`
 
@@ -281,7 +327,13 @@ Caso gia' incontrato e risolto:
 - `app/admin/servizi/page.tsx`
 - `app/admin/servizi/[serviceId]/page.tsx`
 - `app/admin/coordinatori/page.tsx`
+- `app/richiedi-certificato/page.tsx`
+- `app/richiedi-certificato/actions.ts`
+- `app/richiedi-certificato/conferma/page.tsx`
+- `app/coordinatore/layout.tsx`
+- `app/coordinatore/actions.ts`
 - `app/coordinatore/page.tsx`
+- `app/coordinatore/richieste/[id]/page.tsx`
 - `proxy.ts`
 
 ### Componenti / utility
@@ -290,7 +342,11 @@ Caso gia' incontrato e risolto:
 - `components/admin/coordinator-search-select.tsx`
 - `components/admin/flash-message.tsx`
 - `components/admin/page-header.tsx`
+- `components/public/filterable-select.tsx`
+- `components/public/request-entity-selectors.tsx`
+- `components/coordinator/request-status-badge.tsx`
 - `lib/auth/admin.ts`
+- `lib/coordinator/requests.ts`
 - `lib/utils/form-data.ts`
 - `lib/utils/request-url.ts`
 
@@ -373,36 +429,37 @@ Non committare mai segreti nuovi oltre quelli gia' presenti localmente.
 
 Ordine sensato:
 
-1. importare o creare i coordinatori mancanti
-2. collegare i coordinatori ai servizi in `service_coordinators`
-3. riattivare i servizi che devono essere `active`
-4. testare bene l'area coordinatore con assegnazioni reali
-5. solo dopo passare alla Fase 4
+1. collegare l'approvazione coordinatore alla generazione reale del PDF
+2. salvare il PDF in storage privato e renderlo scaricabile dal dettaglio richiesta
+3. inviare l'email finale allo studente e, se previsto, a scuola e docente
+4. tracciare gli esiti finali aggiornando la richiesta a `completed` o `delivery_failed`
+5. aggiungere un primo ciclo di QA manuale completo da submit pubblico fino alla consegna finale
 
-### Fase 4 prevista
+### Fase 6 prevista
 
-Costruire il flusso pubblico studente per richiesta certificato:
+Chiudere il ciclo dopo l'approvazione del coordinatore:
 
-- form pubblico senza login
-- validazione server-side
-- creazione `certificate_requests`
-- notifica email ai coordinatori del servizio
+- generazione PDF server-side
+- salvataggio del PDF in storage privato
+- download del PDF dal dettaglio richiesta
+- invio email finale a studente, scuola e docente
+- aggiornamento stato finale richiesta e log invii
 
-Prima di iniziare davvero la Fase 4 conviene verificare:
+Prima di iniziare davvero la Fase 6 conviene verificare:
 
-- almeno un coordinatore attivo assegnato a servizi attivi
-- accesso coordinatore testato con dati reali
-- naming finale dei campi del form pubblico
-- testi email minimi da inviare ai coordinatori quando arriva una richiesta
+- testo finale dei certificati `pcto` e `volontariato`
+- strategia tecnica PDF scelta
+- provider email transazionale scelto per gli invii finali
+- comportamento desiderato: allegato vs link privato
 
-Possibile ordine tecnico per la Fase 4:
+Possibile ordine tecnico per la Fase 6:
 
-1. pagina pubblica richiesta certificato
-2. server action per validazione e insert
-3. salvataggio snapshot scuola/servizio nella richiesta
-4. evento iniziale in `request_events`
-5. notifica email ai coordinatori del servizio
-6. prima pagina coordinatore per vedere e filtrare le richieste
+1. template PDF `pcto` e `volontariato`
+2. generazione server-side al momento dell'approvazione o subito dopo
+3. salvataggio in storage privato + `pdf_storage_path`
+4. coda o azione per email finali
+5. aggiornamento `email_deliveries`
+6. passaggio finale a `completed` o `delivery_failed`
 
 ## Regole operative per le prossime sessioni
 
@@ -432,4 +489,4 @@ Ordine consigliato:
 7. eseguire `npm run build`
 8. verificare accesso Supabase CLI e `gh auth status`
 9. controllare lo stato dati reale su Supabase
-10. ripartire dagli import/coordinatori oppure dalla Fase 4, in base a cosa manca
+10. ripartire dalla Fase 6 oppure rifinire la Fase 5, in base a cosa manca

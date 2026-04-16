@@ -80,3 +80,13 @@ export async function assertAdmin() {
 
   return context;
 }
+
+export async function assertCoordinator() {
+  const context = await getAuthContext();
+
+  if (!context.user || !context.isCoordinator) {
+    throw new Error("Non autorizzato.");
+  }
+
+  return context;
+}

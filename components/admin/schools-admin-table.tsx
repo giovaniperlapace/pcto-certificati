@@ -67,6 +67,10 @@ export function SchoolsAdminTable({ schools }: SchoolsAdminTableProps) {
       ? schools.find((school) => school.id === editor.id) ?? null
       : null;
 
+  const isEditorOpen =
+    editor?.mode === "create" ||
+    (editor?.mode === "edit" && editingSchool !== null);
+
   const visibleSchools = schools
     .filter((school) => {
       if (
@@ -401,7 +405,7 @@ export function SchoolsAdminTable({ schools }: SchoolsAdminTableProps) {
       </TablePanel>
 
       <TableDialog
-        open={editor !== null}
+        open={isEditorOpen}
         title={editor?.mode === "create" ? "Nuova scuola" : "Modifica scuola"}
         description={
           editor?.mode === "create"

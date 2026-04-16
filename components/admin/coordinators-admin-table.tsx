@@ -78,6 +78,10 @@ export function CoordinatorsAdminTable({
       ? coordinators.find((coordinator) => coordinator.id === editor.id) ?? null
       : null;
 
+  const isEditorOpen =
+    editor?.mode === "create" ||
+    (editor?.mode === "edit" && editingCoordinator !== null);
+
   const visibleCoordinators = coordinators
     .filter((coordinator) => {
       if (
@@ -427,7 +431,7 @@ export function CoordinatorsAdminTable({
       </TablePanel>
 
       <TableDialog
-        open={editor !== null}
+        open={isEditorOpen}
         title={
           editor?.mode === "create"
             ? "Nuovo coordinatore"

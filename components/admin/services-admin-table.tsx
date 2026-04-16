@@ -86,6 +86,10 @@ export function ServicesAdminTable({
       ? services.find((service) => service.id === editor.id) ?? null
       : null;
 
+  const isEditorOpen =
+    editor?.mode === "create" ||
+    (editor?.mode === "edit" && editingService !== null);
+
   const visibleServices = services
     .filter((service) => {
       if (
@@ -441,7 +445,7 @@ export function ServicesAdminTable({
       </TablePanel>
 
       <TableDialog
-        open={editor !== null}
+        open={isEditorOpen}
         title={editor?.mode === "create" ? "Nuovo servizio" : "Modifica servizio"}
         description={
           editor?.mode === "create"

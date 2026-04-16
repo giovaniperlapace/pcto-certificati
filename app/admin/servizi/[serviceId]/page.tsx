@@ -91,85 +91,86 @@ export default async function ServiceAssignmentsPage({
         }
       />
 
-      <FlashMessage error={query.error ?? null} success={query.success ?? null} />
+      <div className="mx-auto w-full max-w-4xl space-y-6">
+        <FlashMessage error={query.error ?? null} success={query.success ?? null} />
 
-      <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-            Collega un coordinatore
-          </h2>
+        <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-5 shadow-sm md:p-6">
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
+              Collega un coordinatore
+            </h2>
 
-          {availableCoordinators.length === 0 ? (
-            <p className="text-sm text-zinc-600">
-              Tutti i coordinatori disponibili sono gia&apos; collegati a questo
-              servizio.
-            </p>
-          ) : (
-            <form
-              action={addServiceCoordinatorAction}
-              className="grid gap-4 md:grid-cols-2"
-            >
-              <input
-                type="hidden"
-                name="redirect_to"
-                value={`/admin/servizi/${service.id}`}
-              />
-              <input type="hidden" name="service_id" value={service.id} />
-
-              <label className="space-y-2 md:col-span-2">
-                <span className="text-sm font-medium text-zinc-800">
-                  Coordinatore
-                </span>
-                <CoordinatorSearchSelect coordinators={availableCoordinators} />
-              </label>
-
-              <label className="flex items-center gap-3 rounded-2xl border border-zinc-200 px-4 py-3 text-sm text-zinc-700">
-                <input type="checkbox" name="is_primary" />
-                Coordinatore principale
-              </label>
-
-              <label className="flex items-center gap-3 rounded-2xl border border-zinc-200 px-4 py-3 text-sm text-zinc-700">
+            {availableCoordinators.length === 0 ? (
+              <p className="text-sm text-zinc-600">
+                Tutti i coordinatori disponibili sono gia&apos; collegati a questo
+                servizio.
+              </p>
+            ) : (
+              <form
+                action={addServiceCoordinatorAction}
+                className="grid gap-4 md:grid-cols-2"
+              >
                 <input
-                  defaultChecked
-                  type="checkbox"
-                  name="receives_new_request_notifications"
+                  type="hidden"
+                  name="redirect_to"
+                  value={`/admin/servizi/${service.id}`}
                 />
-                Riceve notifiche nuove richieste
-              </label>
+                <input type="hidden" name="service_id" value={service.id} />
 
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-                >
-                  Collega coordinatore
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      </section>
+                <label className="space-y-2 md:col-span-2">
+                  <span className="text-sm font-medium text-zinc-800">
+                    Coordinatore
+                  </span>
+                  <CoordinatorSearchSelect coordinators={availableCoordinators} />
+                </label>
 
-      <section className="space-y-4">
-        {assignments.length === 0 ? (
-          <article className="rounded-[1.75rem] border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800 shadow-sm">
-            Nessun coordinatore collegato. Se il servizio e&apos; attivo, aggiungine
-            almeno uno prima di usarlo nel flusso pubblico.
-          </article>
-        ) : null}
+                <label className="flex items-center gap-3 rounded-2xl border border-zinc-200 px-4 py-3 text-sm text-zinc-700">
+                  <input type="checkbox" name="is_primary" />
+                  Coordinatore principale
+                </label>
 
-        {assignments.map((assignment) => {
-          const coordinator = coordinatorsById.get(assignment.coordinator_id);
+                <label className="flex items-center gap-3 rounded-2xl border border-zinc-200 px-4 py-3 text-sm text-zinc-700">
+                  <input
+                    defaultChecked
+                    type="checkbox"
+                    name="receives_new_request_notifications"
+                  />
+                  Riceve notifiche nuove richieste
+                </label>
 
-          if (!coordinator) {
-            return null;
-          }
+                <div className="md:col-span-2">
+                  <button
+                    type="submit"
+                    className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
+                  >
+                    Collega coordinatore
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </section>
 
-          return (
-            <article
-              key={assignment.coordinator_id}
-              className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm"
-            >
+        <section className="space-y-4">
+          {assignments.length === 0 ? (
+            <article className="rounded-[1.75rem] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 shadow-sm md:p-6">
+              Nessun coordinatore collegato. Se il servizio e&apos; attivo, aggiungine
+              almeno uno prima di usarlo nel flusso pubblico.
+            </article>
+          ) : null}
+
+          {assignments.map((assignment) => {
+            const coordinator = coordinatorsById.get(assignment.coordinator_id);
+
+            if (!coordinator) {
+              return null;
+            }
+
+            return (
+              <article
+                key={assignment.coordinator_id}
+                className="rounded-[1.75rem] border border-zinc-200 bg-white p-5 shadow-sm md:p-6"
+              >
               <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
@@ -265,10 +266,11 @@ export default async function ServiceAssignmentsPage({
                   </button>
                 </form>
               </div>
-            </article>
-          );
-        })}
-      </section>
+              </article>
+            );
+          })}
+        </section>
+      </div>
     </div>
   );
 }

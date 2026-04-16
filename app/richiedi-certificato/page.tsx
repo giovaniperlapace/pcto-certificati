@@ -176,7 +176,7 @@ export default async function RequestCertificatePage({
 
                   <label className="block space-y-2">
                     <span className="text-sm font-medium text-zinc-800">
-                      Ore richieste
+                      Ore di servizio svolte
                     </span>
                     <input
                       type="number"

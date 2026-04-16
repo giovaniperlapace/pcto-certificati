@@ -5,12 +5,19 @@ import { PageHeader } from "@/components/admin/page-header";
 import { RequestStatusBadge } from "@/components/coordinator/request-status-badge";
 import {
   approveCoordinatorRequestAction,
+  finalizeCoordinatorRequestDeliveryAction,
   rejectCoordinatorRequestAction,
   saveCoordinatorRequestAction,
 } from "@/app/coordinatore/actions";
+import {
+  buildDefaultCertificateBodyText,
+  buildDefaultCertificateHeadingText,
+  type CertificateDeliveryRequest,
+} from "@/lib/certificates/content";
 import { requireCoordinator } from "@/lib/auth/admin";
 import {
   buildCoordinatorRequestPath,
+  canFinalizeRequestStatus,
   formatActorType,
   formatDateTime,
   formatRequestEventType,
@@ -45,7 +52,7 @@ export default async function CoordinatorRequestDetailPage({
   const { data: request, error: requestError } = await supabase
     .from("certificate_requests")
     .select(
-      "id, status, submitted_at, updated_at, reviewed_at, approved_at, rejected_at, reviewed_by_coordinator_id, rejection_reason, decision_notes, certificate_type, student_first_name, student_last_name, student_email, class_label, hours_requested, hours_approved, student_notes, school_id, school_name_snapshot, teacher_name_snapshot, teacher_email_snapshot, service_name_snapshot, service_schedule_snapshot, service_address_snapshot, send_to_school, send_to_teacher, pdf_generated_at, pdf_storage_path, student_emailed_at, school_emailed_at, teacher_emailed_at",
+      "id, status, submitted_at, updated_at, reviewed_at, approved_at, rejected_at, reviewed_by_coordinator_id, rejection_reason, decision_notes, certificate_type, certificate_heading_text, certificate_body_text, student_first_name, student_last_name, student_email, class_label, hours_requested, hours_approved, student_notes, school_id, school_year_id, school_name_snapshot, teacher_name_snapshot, teacher_email_snapshot, service_name_snapshot, service_schedule_snapshot, service_address_snapshot, send_to_school, send_to_teacher, pdf_generated_at, pdf_storage_path, student_emailed_at, school_emailed_at, teacher_emailed_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -83,7 +90,7 @@ export default async function CoordinatorRequestDetailPage({
   }
 
   const adminSupabase = createAdminClient();
-  const [schoolResult, reviewerResult] = await Promise.all([
+  const [schoolResult, reviewerResult, schoolYearResult] = await Promise.all([
     request.school_id
       ? adminSupabase
           .from("schools")
@@ -98,6 +105,11 @@ export default async function CoordinatorRequestDetailPage({
           .eq("id", request.reviewed_by_coordinator_id)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    adminSupabase
+      .from("school_years")
+      .select("label")
+      .eq("id", request.school_year_id)
+      .maybeSingle(),
   ]);
 
   if (schoolResult.error) {
@@ -108,10 +120,26 @@ export default async function CoordinatorRequestDetailPage({
     throw reviewerResult.error;
   }
 
+  if (schoolYearResult.error) {
+    throw schoolYearResult.error;
+  }
+
   const schoolEmail = schoolResult.data?.school_email ?? null;
   const reviewer = reviewerResult.data;
   const isEditable = isEditableRequestStatus(request.status);
+  const canFinalizeDelivery = canFinalizeRequestStatus(request.status);
   const statusMeta = getRequestStatusMeta(request.status);
+  const certificatePreviewRequest = {
+    ...request,
+    schoolEmail,
+    schoolYearLabel: schoolYearResult.data?.label ?? "anno scolastico corrente",
+  } as CertificateDeliveryRequest;
+  const defaultCertificateHeading = buildDefaultCertificateHeadingText(
+    certificatePreviewRequest,
+  );
+  const defaultCertificateBody = buildDefaultCertificateBodyText(
+    certificatePreviewRequest,
+  );
 
   return (
     <div className="space-y-8">
@@ -456,6 +484,46 @@ export default async function CoordinatorRequestDetailPage({
                   ricaricare il dettaglio con i dati piu&apos; recenti.
                 </div>
 
+                <details className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <summary className="cursor-pointer text-sm font-medium text-zinc-900">
+                    Personalizza il testo del certificato per questa richiesta
+                    <span className="ml-2 font-normal text-zinc-500">(opzionale)</span>
+                  </summary>
+                  <div className="mt-4 space-y-4">
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm leading-6 text-zinc-600">
+                      Se lasci vuoti i campi qui sotto, il sistema usera&apos; il testo
+                      standard. L&apos;approvazione continua normalmente anche senza
+                      personalizzazioni.
+                    </div>
+                    <div className="grid gap-5">
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium text-zinc-800">
+                          Intestazione personalizzata
+                        </span>
+                        <textarea
+                          name="certificate_heading_text"
+                          defaultValue={request.certificate_heading_text ?? ""}
+                          rows={3}
+                          placeholder={defaultCertificateHeading}
+                          className={textareaClassName}
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium text-zinc-800">
+                          Testo personalizzato
+                        </span>
+                        <textarea
+                          name="certificate_body_text"
+                          defaultValue={request.certificate_body_text ?? ""}
+                          rows={10}
+                          placeholder={defaultCertificateBody}
+                          className={textareaClassName}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </details>
+
                 <div className="flex flex-wrap gap-3">
                   <button
                     type="submit"
@@ -469,7 +537,7 @@ export default async function CoordinatorRequestDetailPage({
                     formAction={approveCoordinatorRequestAction}
                     className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
                   >
-                    Approva richiesta
+                    Approva richiesta e invia
                   </button>
                   <button
                     type="submit"
@@ -488,6 +556,71 @@ export default async function CoordinatorRequestDetailPage({
                   <strong>{statusMeta.label.toLowerCase()}</strong>.
                   I dati rimangono visibili come storico della pratica.
                 </article>
+
+                {(canFinalizeDelivery || request.pdf_storage_path) && (
+                  <div className="flex flex-wrap gap-3">
+                    {canFinalizeDelivery ? (
+                      <form action={finalizeCoordinatorRequestDeliveryAction} className="w-full space-y-4">
+                        <input type="hidden" name="id" value={request.id} />
+                        <input
+                          type="hidden"
+                          name="current_updated_at"
+                          value={request.updated_at}
+                        />
+                        <input type="hidden" name="redirect_to" value={requestPath} />
+                        <details className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                          <summary className="cursor-pointer text-sm font-medium text-zinc-900">
+                            Personalizza il testo del certificato
+                            <span className="ml-2 font-normal text-zinc-500">(opzionale)</span>
+                          </summary>
+                          <div className="mt-4 space-y-4">
+                            <label className="space-y-2">
+                              <span className="text-sm font-medium text-zinc-800">
+                                Intestazione personalizzata
+                              </span>
+                              <textarea
+                                name="certificate_heading_text"
+                                defaultValue={request.certificate_heading_text ?? ""}
+                                rows={3}
+                                placeholder={defaultCertificateHeading}
+                                className={textareaClassName}
+                              />
+                            </label>
+                            <label className="space-y-2">
+                              <span className="text-sm font-medium text-zinc-800">
+                                Testo personalizzato
+                              </span>
+                              <textarea
+                                name="certificate_body_text"
+                                defaultValue={request.certificate_body_text ?? ""}
+                                rows={10}
+                                placeholder={defaultCertificateBody}
+                                className={textareaClassName}
+                              />
+                            </label>
+                          </div>
+                        </details>
+                        <button
+                          type="submit"
+                          className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
+                        >
+                          {request.status === "approved"
+                            ? "Genera PDF e invia"
+                            : "Riprova consegna finale"}
+                        </button>
+                      </form>
+                    ) : null}
+
+                    {request.pdf_storage_path ? (
+                      <Link
+                        href={`${requestPath}/certificato`}
+                        className="rounded-full border border-zinc-200 bg-white px-5 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
+                      >
+                        Scarica PDF
+                      </Link>
+                    ) : null}
+                  </div>
+                )}
 
                 <div className="grid gap-4 md:grid-cols-2">
                   {[
@@ -615,6 +748,19 @@ export default async function CoordinatorRequestDetailPage({
                 Revisore: {reviewer ? `${reviewer.first_name} ${reviewer.last_name}` : "-"}
               </p>
               <p>PDF storage path: {request.pdf_storage_path ?? "-"}</p>
+              <p>
+                Download PDF:{" "}
+                {request.pdf_storage_path ? (
+                  <Link
+                    href={`${requestPath}/certificato`}
+                    className="font-medium text-zinc-950 underline underline-offset-4"
+                  >
+                    Scarica certificato
+                  </Link>
+                ) : (
+                  "-"
+                )}
+              </p>
               <p>Motivazione rifiuto: {request.rejection_reason ?? "-"}</p>
               <p>Note del coordinatore: {request.decision_notes ?? "-"}</p>
             </div>

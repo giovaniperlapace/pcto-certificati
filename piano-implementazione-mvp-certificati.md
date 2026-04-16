@@ -25,8 +25,8 @@ Realizzare una web app MVP che:
 - Fase 2 completata
 - Fase 3 completata
 - Fase 4 completata in una prima versione usabile
-- Fase 5 avviata e gia' operativa per la revisione base
-- Fase 6 non ancora iniziata
+- Fase 5 completata in una prima versione usabile
+- Fase 6 avviata in una prima versione tecnica
 - Fase 7 non ancora iniziata
 
 ## Regole di progetto
@@ -150,6 +150,8 @@ Vincoli:
 - `rejected_at`
 - `rejection_reason`
 - `decision_notes`
+- `certificate_heading_text`
+- `certificate_body_text`
 - `coordinator_notified_at`
 - `pdf_storage_path`
 - `pdf_generated_at`
@@ -306,6 +308,14 @@ Significato:
 - prevedere due template: `pcto` e `volontariato`
 - salvare il PDF in Supabase Storage privato
 - salvare nel database il path e il timestamp di generazione
+- consentire override opzionale di intestazione e corpo per la singola richiesta
+
+Implementazione MVP attuale:
+
+- generazione con `pdf-lib`
+- bucket privato `certificate-pdfs`
+- asset grafici in `public/certificate-assets/`
+- testo standard derivato dai template legacy RMarkdown
 
 Il certificato deve contenere:
 
@@ -326,6 +336,12 @@ Il certificato deve contenere:
 - usare un provider transazionale semplice
 - invio sempre server-side
 - mantenere template separati
+
+Implementazione MVP attuale:
+
+- invio via Gmail SMTP con `nodemailer`
+- allegato PDF in email
+- retry manuale dalla UI coordinatore per richieste in `approved` o `delivery_failed`
 
 Template necessari:
 
@@ -562,6 +578,26 @@ Restano da chiudere nelle fasi successive:
 
 Chiudere il ciclo dopo approvazione.
 
+#### Stato attuale
+
+Gia' disponibile in una prima versione tecnica:
+
+- template PDF `pcto` e `volontariato`
+- generazione PDF server-side
+- salvataggio PDF in storage privato
+- download protetto del PDF dal dettaglio richiesta
+- invio email con allegato a studente, scuola e docente quando previsto
+- registrazione esiti in `email_deliveries`
+- aggiornamento finale a `completed` o `delivery_failed`
+- personalizzazione opzionale del testo del certificato per singola richiesta
+  senza interrompere il flusso standard di approvazione e invio
+
+Da validare o rifinire meglio:
+
+- QA manuale completo con invio reale controllato
+- resa finale del layout PDF su piu' casi
+- tenuta operativa di Gmail SMTP sul carico reale MVP
+
 #### Attività principali
 
 - creare template PDF `pcto` e `volontariato`
@@ -581,6 +617,8 @@ Chiudere il ciclo dopo approvazione.
 - studente riceve email con allegato o link coerente con la scelta implementativa
 - eventuali copie sono inviate correttamente
 - errori di invio finiscono in `delivery_failed`
+- il coordinatore puo' lasciare il testo standard oppure personalizzare
+  intestazione e corpo solo per quella richiesta
 
 ### Fase 7. Hardening e QA
 

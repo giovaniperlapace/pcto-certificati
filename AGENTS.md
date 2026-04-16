@@ -98,10 +98,10 @@ Gia' presente:
 - registrazione notifiche in `email_deliveries` per coordinatori o admin
 - pagina di conferma submit in `app/richiedi-certificato/conferma/`
 
-### Fase 5 avviata e gia' usabile per la revisione base
+### Fase 5 completata in una prima versione usabile
 
-L'area coordinatore ora consente una prima revisione reale delle richieste,
-ma non chiude ancora il ciclo PDF/email finale.
+L'area coordinatore consente una revisione reale delle richieste in modo gia'
+usabile.
 
 Gia' presente:
 
@@ -120,12 +120,34 @@ Gia' presente:
 - controllo concorrenza tra coordinatori con verifica di `updated_at`
 - blocco chiusura doppia consentendo approva/rifiuta solo su richieste `submitted`
 
-Non ancora presente in Fase 5 / da completare nella fase successiva:
+### Fase 6 avviata in una prima versione tecnica
+
+Il ciclo post-approvazione ora esiste davvero, ma va ancora validato meglio
+end-to-end su casi reali.
+
+Gia' presente:
 
 - generazione reale del PDF
 - download del certificato dal dettaglio richiesta
 - invio finale email a studente, scuola e docente
 - transizione finale a `completed` o `delivery_failed`
+- retry manuale della consegna finale per richieste `approved` o `delivery_failed`
+- registrazione esiti finali in `request_events` ed `email_deliveries`
+- bucket storage privato `certificate-pdfs`
+- provider email MVP via Gmail SMTP con `nodemailer`
+- integrazione grafica di:
+  - `public/certificate-assets/header.png`
+  - `public/certificate-assets/footer.png`
+  - `public/certificate-assets/signature.png`
+- testi base certificato derivati dai template legacy RMarkdown
+- possibilita' opzionale di personalizzare intestazione e corpo del certificato
+  per la singola richiesta senza interrompere il flusso standard
+
+Da rifinire / validare meglio nella fase successiva:
+
+- QA manuale completo con invio reale controllato
+- rifinitura impaginazione e testi istituzionali finali
+- verifica robustezza deliverability Gmail in produzione
 
 ## Stato dati reale su Supabase
 
@@ -293,6 +315,7 @@ Caso gia' incontrato e risolto:
 
 - `supabase/migrations/20260415124941_init_mvp_schema.sql`
 - `supabase/migrations/20260416094000_allow_manual-school-and-service-submissions.sql`
+- `supabase/migrations/20260416234500_add_certificate_text_overrides.sql`
 - `supabase/config.toml`
 - `lib/supabase/database.types.ts`
 
@@ -334,6 +357,7 @@ Caso gia' incontrato e risolto:
 - `app/coordinatore/actions.ts`
 - `app/coordinatore/page.tsx`
 - `app/coordinatore/richieste/[id]/page.tsx`
+- `app/coordinatore/richieste/[id]/certificato/route.ts`
 - `proxy.ts`
 
 ### Componenti / utility
@@ -346,6 +370,10 @@ Caso gia' incontrato e risolto:
 - `components/public/request-entity-selectors.tsx`
 - `components/coordinator/request-status-badge.tsx`
 - `lib/auth/admin.ts`
+- `lib/certificates/content.ts`
+- `lib/certificates/email.ts`
+- `lib/certificates/finalize.ts`
+- `lib/certificates/pdf.ts`
 - `lib/coordinator/requests.ts`
 - `lib/utils/form-data.ts`
 - `lib/utils/request-url.ts`
@@ -416,6 +444,8 @@ Variabili attese:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `GMAIL_USER`
+- `GMAIL_APP_PASSWORD`
 
 Non committare mai segreti nuovi oltre quelli gia' presenti localmente.
 
@@ -429,35 +459,44 @@ Non committare mai segreti nuovi oltre quelli gia' presenti localmente.
 
 Ordine sensato:
 
-1. collegare l'approvazione coordinatore alla generazione reale del PDF
-2. salvare il PDF in storage privato e renderlo scaricabile dal dettaglio richiesta
-3. inviare l'email finale allo studente e, se previsto, a scuola e docente
-4. tracciare gli esiti finali aggiornando la richiesta a `completed` o `delivery_failed`
-5. aggiungere un primo ciclo di QA manuale completo da submit pubblico fino alla consegna finale
+1. eseguire un ciclo di QA manuale completo da submit pubblico fino alla consegna finale
+2. verificare su casi reali il comportamento di email a studente, scuola e docente
+3. rifinire i testi finali dei certificati `pcto` e `volontariato` se necessario
+4. valutare eventuali limiti pratici di Gmail SMTP per il carico reale MVP
+5. passare alla Fase 7 di hardening e QA
 
-### Fase 6 prevista
+### Fase 6 stato attuale
 
-Chiudere il ciclo dopo l'approvazione del coordinatore:
+La Fase 6 ora copre gia':
 
 - generazione PDF server-side
 - salvataggio del PDF in storage privato
 - download del PDF dal dettaglio richiesta
 - invio email finale a studente, scuola e docente
 - aggiornamento stato finale richiesta e log invii
+- personalizzazione opzionale del testo del certificato per singola richiesta
 
-Prima di iniziare davvero la Fase 6 conviene verificare:
+Note operative:
+
+- il flusso standard resta lineare: il coordinatore puo' approvare e inviare
+  senza toccare il testo del certificato
+- la personalizzazione del testo e' opzionale e vale solo per quella richiesta
+- il PDF finale usa gli asset grafici attualmente presenti in
+  `public/certificate-assets/`
+
+Prima di considerare chiusa davvero la Fase 6 conviene verificare:
 
 - testo finale dei certificati `pcto` e `volontariato`
-- strategia tecnica PDF scelta
-- provider email transazionale scelto per gli invii finali
-- comportamento desiderato: allegato vs link privato
+- resa PDF su piu' richieste reali
+- invio con allegato su caselle reali di test
+- fallback o piano B se Gmail SMTP mostra limiti pratici
 
-Possibile ordine tecnico per la Fase 6:
+Punti tecnici gia' adottati in Fase 6:
 
-1. template PDF `pcto` e `volontariato`
-2. generazione server-side al momento dell'approvazione o subito dopo
+1. template PDF `pcto` e `volontariato` con `pdf-lib`
+2. generazione server-side al momento dell'approvazione finale
 3. salvataggio in storage privato + `pdf_storage_path`
-4. coda o azione per email finali
+4. invio email con allegato tramite Gmail SMTP
 5. aggiornamento `email_deliveries`
 6. passaggio finale a `completed` o `delivery_failed`
 
@@ -489,4 +528,4 @@ Ordine consigliato:
 7. eseguire `npm run build`
 8. verificare accesso Supabase CLI e `gh auth status`
 9. controllare lo stato dati reale su Supabase
-10. ripartire dalla Fase 6 oppure rifinire la Fase 5, in base a cosa manca
+10. ripartire dalla Fase 7 oppure rifinire/validare meglio la Fase 6, in base a cosa manca

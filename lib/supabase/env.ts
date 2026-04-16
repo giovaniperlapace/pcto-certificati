@@ -21,3 +21,10 @@ export function getSupabaseServiceRoleEnv() {
     serviceRoleKey: requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
   };
 }
+
+export function getGmailEnv() {
+  return {
+    user: requireEnv("GMAIL_USER"),
+    appPassword: requireEnv("GMAIL_APP_PASSWORD"),
+  };
+}

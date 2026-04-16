@@ -58,6 +58,10 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   request_updated_by_coordinator: "Dati aggiornati dal coordinatore",
   request_approved: "Richiesta approvata",
   request_rejected: "Richiesta rifiutata",
+  certificate_pdf_generated: "PDF certificato generato",
+  certificate_delivery_completed: "Consegna finale completata",
+  certificate_delivery_failed: "Consegna finale fallita",
+  certificate_pdf_downloaded: "PDF scaricato dal coordinatore",
 };
 
 const ACTOR_TYPE_LABELS: Record<string, string> = {
@@ -76,6 +80,10 @@ export function getRequestStatusLabel(status: RequestStatus) {
 
 export function isEditableRequestStatus(status: RequestStatus) {
   return status === "submitted";
+}
+
+export function canFinalizeRequestStatus(status: RequestStatus) {
+  return status === "approved" || status === "delivery_failed";
 }
 
 export function formatDateTime(value: string | null) {

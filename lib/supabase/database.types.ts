@@ -17,6 +17,8 @@ export type Database = {
       certificate_requests: {
         Row: {
           approved_at: string | null
+          certificate_body_text: string | null
+          certificate_heading_text: string | null
           certificate_type: Database["public"]["Enums"]["certificate_type"]
           class_label: string
           coordinator_notified_at: string | null
@@ -57,6 +59,8 @@ export type Database = {
         }
         Insert: {
           approved_at?: string | null
+          certificate_body_text?: string | null
+          certificate_heading_text?: string | null
           certificate_type: Database["public"]["Enums"]["certificate_type"]
           class_label: string
           coordinator_notified_at?: string | null
@@ -97,6 +101,8 @@ export type Database = {
         }
         Update: {
           approved_at?: string | null
+          certificate_body_text?: string | null
+          certificate_heading_text?: string | null
           certificate_type?: Database["public"]["Enums"]["certificate_type"]
           class_label?: string
           coordinator_notified_at?: string | null

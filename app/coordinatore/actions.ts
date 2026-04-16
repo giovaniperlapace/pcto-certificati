@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assertCoordinator } from "@/lib/auth/admin";
+import { finalizeApprovedRequestDelivery } from "@/lib/certificates/finalize";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
 import {
   buildCoordinatorRequestPath,
+  canFinalizeRequestStatus,
   getRequestStatusLabel,
   isEditableRequestStatus,
 } from "@/lib/coordinator/requests";
@@ -29,6 +31,8 @@ type AccessibleRequest = {
 };
 
 type EditableRequestValues = {
+  certificateBodyText: string | null;
+  certificateHeadingText: string | null;
   studentFirstName: string;
   studentLastName: string;
   studentEmail: string;
@@ -145,6 +149,11 @@ function readOptionalPositiveInteger(
 function readEditableRequestValues(formData: FormData): EditableRequestValues {
   const studentFirstName = readRequiredString(formData, "student_first_name");
   const studentLastName = readRequiredString(formData, "student_last_name");
+  const certificateHeadingText = readOptionalString(
+    formData,
+    "certificate_heading_text",
+  );
+  const certificateBodyText = readOptionalString(formData, "certificate_body_text");
   const studentEmail = normalizeEmail(
     readRequiredString(formData, "student_email"),
   );
@@ -208,6 +217,14 @@ function readEditableRequestValues(formData: FormData): EditableRequestValues {
     validateLength("note studente", studentNotes, 2000);
   }
 
+  if (certificateHeadingText) {
+    validateLength("intestazione certificato", certificateHeadingText, 300);
+  }
+
+  if (certificateBodyText) {
+    validateLength("testo certificato", certificateBodyText, 6000);
+  }
+
   if (decisionNotes) {
     validateLength("note del coordinatore", decisionNotes, 2000);
   }
@@ -223,6 +240,8 @@ function readEditableRequestValues(formData: FormData): EditableRequestValues {
   }
 
   return {
+    certificateBodyText,
+    certificateHeadingText,
     studentFirstName,
     studentLastName,
     studentEmail,
@@ -270,6 +289,8 @@ function buildBaseUpdatePayload(
     student_first_name: values.studentFirstName,
     student_last_name: values.studentLastName,
     student_email: values.studentEmail,
+    certificate_heading_text: values.certificateHeadingText,
+    certificate_body_text: values.certificateBodyText,
     class_label: values.classLabel,
     certificate_type: values.certificateType,
     hours_requested: values.hoursRequested,
@@ -323,6 +344,20 @@ async function loadSchoolEmail(schoolId: string | null) {
   }
 
   return data?.school_email ?? null;
+}
+
+async function loadFinalizableRequest(requestId: string) {
+  const currentRequest = await loadAccessibleRequest(requestId);
+
+  if (!canFinalizeRequestStatus(currentRequest.status)) {
+    throw new Error(
+      `La consegna finale non e' disponibile per lo stato ${getRequestStatusLabel(
+        currentRequest.status,
+      ).toLowerCase()}.`,
+    );
+  }
+
+  return currentRequest;
 }
 
 async function recordRequestEvent(params: {
@@ -523,18 +558,122 @@ export async function approveCoordinatorRequestAction(formData: FormData) {
       },
     });
 
+    const finalizationResult = await finalizeApprovedRequestDelivery({
+      requestId,
+      triggeredByUserId: user.id,
+    });
+
     revalidatePath(DASHBOARD_PATH);
     revalidatePath(buildCoordinatorRequestPath(requestId));
+
+    if (finalizationResult.finalStatus === "completed") {
+      redirectWithMessage(
+        buildCoordinatorRequestPath(requestId),
+        "success",
+        "Richiesta approvata, PDF generato e invio finale completato.",
+      );
+    }
+
     redirectWithMessage(
       buildCoordinatorRequestPath(requestId),
-      "success",
-      "Richiesta approvata.",
+      "error",
+      finalizationResult.errorMessage ??
+        "Richiesta approvata, ma la consegna finale richiede attenzione.",
     );
   } catch (error) {
     redirectWithMessage(
       redirectTo,
       "error",
       handleActionError(error, "Impossibile approvare la richiesta."),
+    );
+  }
+}
+
+export async function finalizeCoordinatorRequestDeliveryAction(formData: FormData) {
+  const redirectTo = readRedirectPath(formData, getRequestPathFromForm(formData));
+
+  try {
+    const { coordinator, user } = await assertCoordinator();
+
+    if (!coordinator) {
+      throw new Error("Coordinatore non disponibile.");
+    }
+
+    const requestId = readRequiredString(formData, "id");
+    const expectedUpdatedAt = readRequiredString(formData, "current_updated_at");
+    const currentRequest = await loadFinalizableRequest(requestId);
+    const certificateHeadingText = readOptionalString(
+      formData,
+      "certificate_heading_text",
+    );
+    const certificateBodyText = readOptionalString(formData, "certificate_body_text");
+
+    if (currentRequest.updated_at !== expectedUpdatedAt) {
+      throw new Error(
+        "La richiesta e' cambiata nel frattempo. Ricarica la pagina prima di rilanciare la consegna finale.",
+      );
+    }
+
+    if (certificateHeadingText) {
+      validateLength("intestazione certificato", certificateHeadingText, 300);
+    }
+
+    if (certificateBodyText) {
+      validateLength("testo certificato", certificateBodyText, 6000);
+    }
+
+    const adminSupabase = createAdminClient();
+    const { data: textUpdatedRequest, error: textUpdateError } = await adminSupabase
+      .from("certificate_requests")
+      .update({
+        certificate_heading_text: certificateHeadingText,
+        certificate_body_text: certificateBodyText,
+      })
+      .eq("id", requestId)
+      .eq("updated_at", expectedUpdatedAt)
+      .select("id")
+      .maybeSingle();
+
+    if (textUpdateError) {
+      throw textUpdateError;
+    }
+
+    if (!textUpdatedRequest) {
+      throw new Error(
+        "La richiesta e' cambiata nel frattempo. Ricarica la pagina prima di rilanciare la consegna finale.",
+      );
+    }
+
+    const finalizationResult = await finalizeApprovedRequestDelivery({
+      requestId,
+      triggeredByUserId: user.id,
+    });
+
+    revalidatePath(DASHBOARD_PATH);
+    revalidatePath(buildCoordinatorRequestPath(requestId));
+
+    if (finalizationResult.finalStatus === "completed") {
+      redirectWithMessage(
+        buildCoordinatorRequestPath(requestId),
+        "success",
+        "Consegna finale completata con successo.",
+      );
+    }
+
+    redirectWithMessage(
+      buildCoordinatorRequestPath(requestId),
+      "error",
+      finalizationResult.errorMessage ??
+        "La consegna finale non e' stata completata.",
+    );
+  } catch (error) {
+    redirectWithMessage(
+      redirectTo,
+      "error",
+      handleActionError(
+        error,
+        "Impossibile completare la consegna finale del certificato.",
+      ),
     );
   }
 }

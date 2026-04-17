@@ -120,18 +120,21 @@ Gia' presente:
 - controllo concorrenza tra coordinatori con verifica di `updated_at`
 - blocco chiusura doppia consentendo approva/rifiuta solo su richieste `submitted`
 
-### Fase 6 avviata in una prima versione tecnica
+### Fase 6 completata in una prima versione usabile
 
-Il ciclo post-approvazione ora esiste davvero, ma va ancora validato meglio
-end-to-end su casi reali.
+Il ciclo post-approvazione ora esiste davvero in una prima versione usabile,
+con approvazione, generazione PDF e invio separati.
 
 Gia' presente:
 
 - generazione reale del PDF
 - download del certificato dal dettaglio richiesta
 - invio finale email a studente, scuola e docente
+- approvazione separata da generazione PDF e invio email
+- generazione PDF manuale dopo approvazione
+- invio email manuale dopo generazione PDF
 - transizione finale a `completed` o `delivery_failed`
-- retry manuale della consegna finale per richieste `approved` o `delivery_failed`
+- retry manuale di generazione o invio per richieste `approved` o `delivery_failed`
 - registrazione esiti finali in `request_events` ed `email_deliveries`
 - bucket storage privato `certificate-pdfs`
 - provider email MVP via Gmail SMTP con `nodemailer`
@@ -142,6 +145,8 @@ Gia' presente:
 - testi base certificato derivati dai template legacy RMarkdown
 - gestione admin dei template base `pcto` e `volontariato` dalla dashboard
   con supporto ai placeholder dinamici
+- possibilita' per il coordinatore di modificare lo stesso testo con gli stessi
+  placeholder, ma solo per la singola richiesta
 - possibilita' opzionale di personalizzare intestazione e corpo del certificato
   per la singola richiesta senza interrompere il flusso standard
 
@@ -474,6 +479,7 @@ Ordine sensato:
 
 La Fase 6 ora copre gia':
 
+- approvazione separata da generazione PDF e invio
 - generazione PDF server-side
 - salvataggio del PDF in storage privato
 - download del PDF dal dettaglio richiesta
@@ -481,12 +487,16 @@ La Fase 6 ora copre gia':
 - aggiornamento stato finale richiesta e log invii
 - gestione admin dei template base certificato con placeholder
 - personalizzazione opzionale del testo del certificato per singola richiesta
+  con gli stessi placeholder del template admin
 
 Note operative:
 
-- il flusso standard resta lineare: il coordinatore puo' approvare e inviare
-  senza toccare il testo del certificato
+- il coordinatore prima approva la richiesta, poi puo' generare il PDF
+- una volta generato il PDF, puo' scaricarlo subito oppure inviarlo in un
+  secondo momento
 - la personalizzazione del testo e' opzionale e vale solo per quella richiesta
+- l'admin modifica i template globali che si applicano ai certificati generati
+  da quel momento in poi
 - il PDF finale usa gli asset grafici attualmente presenti in
   `public/certificate-assets/`
 
@@ -500,9 +510,9 @@ Prima di considerare chiusa davvero la Fase 6 conviene verificare:
 Punti tecnici gia' adottati in Fase 6:
 
 1. template PDF `pcto` e `volontariato` con `pdf-lib`
-2. generazione server-side al momento dell'approvazione finale
+2. generazione server-side come step separato dopo l'approvazione
 3. salvataggio in storage privato + `pdf_storage_path`
-4. invio email con allegato tramite Gmail SMTP
+4. invio email con allegato tramite Gmail SMTP come step separato
 5. aggiornamento `email_deliveries`
 6. passaggio finale a `completed` o `delivery_failed`
 

@@ -19,14 +19,14 @@ Realizzare una web app MVP che:
 - Tailwind CSS 4
 - Supabase
 
-## Stato avanzamento al 2026-04-16
+## Stato avanzamento al 2026-04-17
 
 - Fase 1 completata
 - Fase 2 completata
 - Fase 3 completata
 - Fase 4 completata in una prima versione usabile
 - Fase 5 completata in una prima versione usabile
-- Fase 6 avviata in una prima versione tecnica
+- Fase 6 completata in una prima versione usabile
 - Fase 7 non ancora iniziata
 
 ## Regole di progetto
@@ -230,10 +230,10 @@ Usare questi stati:
 Significato:
 
 - `submitted`: richiesta ricevuta e in attesa di revisione
-- `approved`: approvata, pronta o in corso di generazione/invio
+- `approved`: approvata, pronta per generazione PDF, download e invio
 - `rejected`: rifiutata con motivazione
-- `completed`: PDF generato e email allo studente inviata con successo
-- `delivery_failed`: errore su PDF o invio email dopo approvazione
+- `completed`: PDF generato e invio email completato
+- `delivery_failed`: errore su generazione PDF o invio email dopo approvazione
 - `cancelled`: chiusura amministrativa eccezionale
 
 ## Autenticazione e autorizzazione
@@ -324,6 +324,9 @@ Implementazione MVP attuale:
 - bucket privato `certificate-pdfs`
 - asset grafici in `public/certificate-assets/`
 - testo standard derivato dai template legacy RMarkdown
+- template globali gestiti in `certificate_templates`
+- placeholder dinamici modificabili da admin e coordinatore
+- override coordinatore validi solo per la singola richiesta
 
 Il certificato deve contenere:
 
@@ -349,6 +352,7 @@ Implementazione MVP attuale:
 
 - invio via Gmail SMTP con `nodemailer`
 - allegato PDF in email
+- invio separato dalla generazione PDF
 - retry manuale dalla UI coordinatore per richieste in `approved` o `delivery_failed`
 
 Template necessari:
@@ -564,10 +568,11 @@ Restano da chiudere nelle fasi successive:
 - lista richieste filtrata sui soli servizi assegnati
 - dettaglio richiesta
 - Possibilità di modificare i dati inseriti nella richiesta prima di generare il certificato in pdf
-- Funzione per approvare la richiesta e
-	- generare ed eventualmente scaricare il certificato
-	- Inviare il certificato solo allo studente o anche alla scuola/prof di riferimento se disponibile il dato
-	- Funzione per rifiutare la richiesta, spiegando allo studente il motivo
+- Funzione per approvare la richiesta
+- Funzione per generare il PDF dopo approvazione
+- Funzione per scaricare il PDF senza inviarlo
+- Funzione per inviare il certificato allo studente o anche alla scuola/prof di riferimento se disponibile il dato
+- Funzione per rifiutare la richiesta, spiegando allo studente il motivo
 - gestione concorrenza tra più coordinatori sullo stesso servizio
 
 #### Dipendenze
@@ -588,17 +593,20 @@ Chiudere il ciclo dopo approvazione.
 
 #### Stato attuale
 
-Gia' disponibile in una prima versione tecnica:
+Gia' disponibile in una prima versione usabile:
 
 - template PDF `pcto` e `volontariato`
+- template globali modificabili da admin con placeholder
 - generazione PDF server-side
 - salvataggio PDF in storage privato
 - download protetto del PDF dal dettaglio richiesta
+- approvazione separata da generazione PDF e invio email
 - invio email con allegato a studente, scuola e docente quando previsto
 - registrazione esiti in `email_deliveries`
 - aggiornamento finale a `completed` o `delivery_failed`
 - personalizzazione opzionale del testo del certificato per singola richiesta
-  senza interrompere il flusso standard di approvazione e invio
+  con gli stessi placeholder del template admin
+- possibilita' di scaricare il PDF in un primo momento e inviarlo in un secondo momento
 
 Da validare o rifinire meglio:
 
@@ -608,12 +616,15 @@ Da validare o rifinire meglio:
 
 #### Attività principali
 
-- creare template PDF `pcto` e `volontariato`
-- generare PDF server-side
+- creare e mantenere i template PDF `pcto` e `volontariato`
+- consentire modifica admin dei template globali con placeholder
+- consentire override per singola richiesta lato coordinatore
+- generare PDF server-side come passo separato
 - salvare PDF in storage privato
-- inviare email allo studente
+- permettere download PDF prima dell'invio
+- inviare email allo studente come passo separato
 - inviare copie a scuola e docente quando previsto
-- tracciare invii e fallimenti
+- tracciare generazione, invii e fallimenti
 
 #### Dipendenze
 
@@ -621,12 +632,17 @@ Da validare o rifinire meglio:
 
 #### Output / criteri di completamento
 
-- approvazione produce PDF reale
-- studente riceve email con allegato o link coerente con la scelta implementativa
+- approvazione non invia automaticamente il certificato
+- dopo approvazione il coordinatore puo' generare il PDF
+- dopo generazione il coordinatore puo' scaricare il PDF
+- dopo generazione il coordinatore puo' inviare il certificato in un secondo momento
+- studente riceve email con allegato coerente con la scelta implementativa
 - eventuali copie sono inviate correttamente
 - errori di invio finiscono in `delivery_failed`
 - il coordinatore puo' lasciare il testo standard oppure personalizzare
   intestazione e corpo solo per quella richiesta
+- l'admin puo' modificare i template globali che si applicano ai certificati
+  generati successivamente
 
 ### Fase 7. Hardening e QA
 
@@ -676,9 +692,12 @@ Rendere l'MVP stabile e pronto al rilascio.
 - studente invia richiesta
 - coordinatore riceve notifica
 - coordinatore approva
+- coordinatore genera il PDF
 - PDF generato correttamente
+- coordinatore puo' scaricare il PDF senza inviarlo
 - studente riceve certificato
 - scuola e docente ricevono la copia quando previsto
+- coordinatore puo' inviare anche in un secondo momento dopo il download
 - retry manuale da `delivery_failed`
 
 ## Dati seed consigliati

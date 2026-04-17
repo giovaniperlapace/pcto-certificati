@@ -9,7 +9,6 @@ import {
 } from "pdf-lib";
 import {
   buildCertificateBodyParagraphs,
-  buildCertificateDetailRows,
   CERTIFICATE_ASSETS_DIRECTORY,
   formatItalianDate,
   getCertificateHeadingText,
@@ -212,7 +211,6 @@ export async function buildCertificatePdf(
   const bodyFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const bodyBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const bodyItalicFont = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
-  const labelFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const labelValueFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const issuedAt = request.approved_at ? new Date(request.approved_at) : new Date();
 
@@ -310,41 +308,6 @@ export async function buildCertificatePdf(
       color: rgb(0.16, 0.16, 0.16),
     });
     currentY -= 12;
-  }
-
-  const detailRows = buildCertificateDetailRows(request, issuedAt);
-  const detailRowHeight = 18;
-  const detailBoxHeight = 26 + detailRows.length * detailRowHeight;
-  const detailBoxY = currentY - detailBoxHeight + 8;
-
-  page.drawRectangle({
-    x: marginX,
-    y: detailBoxY,
-    width: contentWidth,
-    height: detailBoxHeight,
-    color: rgb(0.97, 0.95, 0.92),
-    borderColor: rgb(0.84, 0.78, 0.68),
-    borderWidth: 1,
-  });
-
-  let detailY = detailBoxY + detailBoxHeight - 20;
-
-  for (const [label, value] of detailRows) {
-    page.drawText(`${label}:`, {
-      x: marginX + 18,
-      y: detailY,
-      size: 10,
-      font: labelFont,
-      color: rgb(0.32, 0.28, 0.25),
-    });
-    page.drawText(value, {
-      x: marginX + 132,
-      y: detailY,
-      size: 10,
-      font: labelValueFont,
-      color: rgb(0.22, 0.22, 0.22),
-    });
-    detailY -= detailRowHeight;
   }
 
   const signatureTopY = 172;

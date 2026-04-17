@@ -18,6 +18,7 @@ import {
 } from "@/lib/certificates/content";
 
 const A4_PAGE_SIZE: [number, number] = [595.28, 841.89];
+const PUBLIC_CERTIFICATE_ASSETS_PATH = "/certificate-assets";
 
 function wrapText(
   text: string,
@@ -104,6 +105,8 @@ function drawCenteredText(params: {
 async function loadOptionalAsset(
   candidateNames: readonly string[],
 ) {
+  const readFailures: unknown[] = [];
+
   for (const candidate of candidateNames) {
     const assetPath = path.join(
       /* turbopackIgnore: true */ process.cwd(),
@@ -117,12 +120,68 @@ async function loadOptionalAsset(
         bytes,
         extension: path.extname(candidate).toLowerCase(),
       };
-    } catch {
-      // Asset opzionale: se manca usiamo il fallback grafico.
+    } catch (error) {
+      // Prima scelta: filesystem locale (utile in sviluppo).
+      readFailures.push(error);
+    }
+  }
+
+  // Fallback robusto per runtime serverless: carica gli asset via URL pubblico.
+  const baseUrl = getRuntimeBaseUrl();
+
+  if (!baseUrl) {
+    return null;
+  }
+
+  for (const candidate of candidateNames) {
+    const assetUrl = `${baseUrl}${PUBLIC_CERTIFICATE_ASSETS_PATH}/${candidate}`;
+
+    try {
+      const response = await fetch(assetUrl, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const bytes = new Uint8Array(await response.arrayBuffer());
+
+      return {
+        bytes,
+        extension: path.extname(candidate).toLowerCase(),
+      };
+    } catch (error) {
+      readFailures.push(error);
     }
   }
 
   return null;
+}
+
+function getRuntimeBaseUrl() {
+  const explicit =
+    process.env.APP_BASE_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL;
+
+  if (explicit && explicit.trim() !== "") {
+    return explicit.trim().replace(/\/+$/, "");
+  }
+
+  const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+
+  if (productionHost && productionHost.trim() !== "") {
+    return `https://${productionHost.trim()}`;
+  }
+
+  const deploymentHost = process.env.VERCEL_URL;
+
+  if (deploymentHost && deploymentHost.trim() !== "") {
+    return `https://${deploymentHost.trim()}`;
+  }
+
+  return "http://127.0.0.1:3000";
 }
 
 async function embedOptionalImage(
@@ -303,59 +362,54 @@ export async function buildCertificatePdf(
     color: rgb(0.28, 0.28, 0.28),
   });
 
+  const signatureBaseY = signatureTopY - 12;
+  const signatureX = marginX + 40;
+
   if (signatureImage) {
-    const dimensions = signatureImage.scaleToFit(150, 58);
+    const dimensions = signatureImage.scaleToFit(170, 78);
     page.drawImage(signatureImage, {
-      x: width - marginX - dimensions.width,
-      y: signatureTopY + 22,
+      x: signatureX,
+      y: signatureBaseY + 8,
       width: dimensions.width,
       height: dimensions.height,
     });
   }
 
   page.drawLine({
-    start: { x: width - marginX - 180, y: signatureTopY + 18 },
-    end: { x: width - marginX, y: signatureTopY + 18 },
+    start: { x: signatureX, y: signatureBaseY + 4 },
+    end: { x: signatureX + 190, y: signatureBaseY + 4 },
     thickness: 1,
     color: rgb(0.54, 0.54, 0.54),
   });
 
-  page.drawText("Per Giovani per la Pace", {
-    x: width - marginX - 178,
-    y: signatureTopY,
-    size: 11,
-    font: bodyBoldFont,
-    color: rgb(0.22, 0.22, 0.22),
-  });
-
   page.drawText("Prof. Stefano Orlando", {
-    x: width - marginX - 178,
-    y: signatureTopY - 16,
-    size: 10,
+    x: signatureX,
+    y: signatureBaseY - 14,
+    size: 13,
     font: bodyBoldFont,
-    color: rgb(0.28, 0.28, 0.28),
+    color: rgb(0.2, 0.2, 0.2),
   });
 
   page.drawText("Coordinatore attività giovanili", {
-    x: width - marginX - 178,
-    y: signatureTopY - 31,
-    size: 10,
+    x: signatureX,
+    y: signatureBaseY - 34,
+    size: 12,
     font: bodyFont,
     color: rgb(0.36, 0.36, 0.36),
   });
 
   page.drawText("Tel. 328/5699419", {
-    x: width - marginX - 178,
-    y: signatureTopY - 46,
-    size: 9,
+    x: signatureX,
+    y: signatureBaseY - 53,
+    size: 11,
     font: bodyFont,
     color: rgb(0.36, 0.36, 0.36),
   });
 
   page.drawText("Email: info@giovaniperlapace.it", {
-    x: width - marginX - 178,
-    y: signatureTopY - 60,
-    size: 9,
+    x: signatureX,
+    y: signatureBaseY - 70,
+    size: 11,
     font: bodyFont,
     color: rgb(0.36, 0.36, 0.36),
   });
@@ -370,7 +424,7 @@ export async function buildCertificatePdf(
     const dimensions = footerImage.scaleToFit(contentWidth, 72);
     page.drawImage(footerImage, {
       x: marginX,
-      y: 30,
+      y: 22,
       width: dimensions.width,
       height: dimensions.height,
     });

@@ -163,6 +163,14 @@ Vincoli:
 - `created_at`
 - `updated_at`
 
+#### `certificate_templates`
+
+- `certificate_type`
+- `heading_template`
+- `body_template`
+- `created_at`
+- `updated_at`
+
 #### `request_events`
 
 - `id`
@@ -246,7 +254,7 @@ Significato:
 
 - login con Supabase Magic Link
 - ruolo applicativo gestito via `user_roles`
-- accesso pieno a CRUD anagrafiche e supervisione richieste
+- accesso pieno a CRUD anagrafiche, template certificati e supervisione richieste
 
 ### RLS
 

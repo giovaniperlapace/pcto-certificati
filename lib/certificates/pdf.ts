@@ -8,13 +8,12 @@ import {
   rgb,
 } from "pdf-lib";
 import {
-  buildCertificateBodyParagraphs,
   CERTIFICATE_ASSETS_DIRECTORY,
   formatItalianDate,
-  getCertificateHeadingText,
   getCertificateTitle,
   type CertificateDeliveryRequest,
 } from "@/lib/certificates/content";
+import { resolveCertificateText } from "@/lib/certificates/templates";
 
 const A4_PAGE_SIZE: [number, number] = [595.28, 841.89];
 const PUBLIC_CERTIFICATE_ASSETS_PATH = "/certificate-assets";
@@ -213,6 +212,7 @@ export async function buildCertificatePdf(
   const bodyItalicFont = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
   const labelValueFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const issuedAt = request.approved_at ? new Date(request.approved_at) : new Date();
+  const resolvedCertificateText = await resolveCertificateText(request);
 
   pdfDoc.setTitle(`${getCertificateTitle(request)} - ${request.student_last_name}`);
   pdfDoc.setAuthor("Giovani per la Pace");
@@ -283,7 +283,7 @@ export async function buildCertificatePdf(
 
   currentY = drawWrappedTextBlock({
     page,
-    text: getCertificateHeadingText(request),
+    text: resolvedCertificateText.headingText,
     x: marginX,
     y: currentY,
     maxWidth: contentWidth,
@@ -295,7 +295,10 @@ export async function buildCertificatePdf(
 
   currentY -= 28;
 
-  for (const paragraph of buildCertificateBodyParagraphs(request)) {
+  for (const paragraph of resolvedCertificateText.bodyText
+    .split(/\n\s*\n/)
+    .map((item) => item.trim())
+    .filter(Boolean)) {
     currentY = drawWrappedTextBlock({
       page,
       text: paragraph,

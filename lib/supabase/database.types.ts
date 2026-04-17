@@ -179,6 +179,30 @@ export type Database = {
           },
         ]
       }
+      certificate_templates: {
+        Row: {
+          body_template: string
+          certificate_type: Database["public"]["Enums"]["certificate_type"]
+          created_at: string
+          heading_template: string
+          updated_at: string
+        }
+        Insert: {
+          body_template: string
+          certificate_type: Database["public"]["Enums"]["certificate_type"]
+          created_at?: string
+          heading_template: string
+          updated_at?: string
+        }
+        Update: {
+          body_template?: string
+          certificate_type?: Database["public"]["Enums"]["certificate_type"]
+          created_at?: string
+          heading_template?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       coordinators: {
         Row: {
           auth_user_id: string | null

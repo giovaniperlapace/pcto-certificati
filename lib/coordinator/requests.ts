@@ -27,7 +27,7 @@ const REQUEST_STATUS_META: Record<
   approved: {
     label: "Approvata",
     toneClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    description: "Approvata e pronta per la generazione finale.",
+    description: "Approvata: puoi generare il PDF, scaricarlo o inviarlo.",
   },
   rejected: {
     label: "Rifiutata",
@@ -37,12 +37,12 @@ const REQUEST_STATUS_META: Record<
   completed: {
     label: "Completata",
     toneClassName: "border-sky-200 bg-sky-50 text-sky-700",
-    description: "Certificato generato e consegna completata.",
+    description: "PDF generato e invio email completato.",
   },
   delivery_failed: {
     label: "Invio fallito",
     toneClassName: "border-orange-200 bg-orange-50 text-orange-700",
-    description: "Richiede attenzione per PDF o consegna.",
+    description: "Richiede attenzione su generazione PDF o invio email.",
   },
   cancelled: {
     label: "Annullata",

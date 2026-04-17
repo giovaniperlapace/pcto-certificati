@@ -5,15 +5,19 @@ import { PageHeader } from "@/components/admin/page-header";
 import { RequestStatusBadge } from "@/components/coordinator/request-status-badge";
 import {
   approveCoordinatorRequestAction,
+  generateCoordinatorRequestPdfAction,
   finalizeCoordinatorRequestDeliveryAction,
   rejectCoordinatorRequestAction,
   saveCoordinatorRequestAction,
 } from "@/app/coordinatore/actions";
 import {
-  buildDefaultCertificateBodyText,
-  buildDefaultCertificateHeadingText,
   type CertificateDeliveryRequest,
 } from "@/lib/certificates/content";
+import {
+  CERTIFICATE_TEMPLATE_PLACEHOLDERS,
+  loadCertificateTemplate,
+  resolveCertificateText,
+} from "@/lib/certificates/templates";
 import { requireCoordinator } from "@/lib/auth/admin";
 import {
   buildCoordinatorRequestPath,
@@ -127,19 +131,26 @@ export default async function CoordinatorRequestDetailPage({
   const schoolEmail = schoolResult.data?.school_email ?? null;
   const reviewer = reviewerResult.data;
   const isEditable = isEditableRequestStatus(request.status);
-  const canFinalizeDelivery = canFinalizeRequestStatus(request.status);
+  const canProcessDelivery = canFinalizeRequestStatus(request.status);
+  const hasGeneratedPdf = Boolean(request.pdf_storage_path);
+  const canGeneratePdf = canProcessDelivery && !hasGeneratedPdf;
+  const canSendDelivery = canProcessDelivery && hasGeneratedPdf;
   const statusMeta = getRequestStatusMeta(request.status);
   const certificatePreviewRequest = {
     ...request,
     schoolEmail,
     schoolYearLabel: schoolYearResult.data?.label ?? "anno scolastico corrente",
   } as CertificateDeliveryRequest;
-  const defaultCertificateHeading = buildDefaultCertificateHeadingText(
-    certificatePreviewRequest,
+  const baseCertificateTemplate = await loadCertificateTemplate(
+    request.certificate_type,
   );
-  const defaultCertificateBody = buildDefaultCertificateBodyText(
-    certificatePreviewRequest,
-  );
+  const resolvedCertificateText = await resolveCertificateText(certificatePreviewRequest);
+  const certificateHeadingTemplateSource =
+    request.certificate_heading_text ?? baseCertificateTemplate.headingTemplate;
+  const certificateBodyTemplateSource =
+    request.certificate_body_text ?? baseCertificateTemplate.bodyTemplate;
+  const defaultCertificateHeading = resolvedCertificateText.headingText;
+  const defaultCertificateBody = resolvedCertificateText.bodyText;
 
   return (
     <div className="space-y-8">
@@ -492,8 +503,8 @@ export default async function CoordinatorRequestDetailPage({
                   <div className="mt-4 space-y-4">
                     <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm leading-6 text-zinc-600">
                       Se lasci vuoti i campi qui sotto, il sistema usera&apos; il testo
-                      standard. L&apos;approvazione continua normalmente anche senza
-                      personalizzazioni.
+                      standard deciso dall&apos;admin. Se invece li modifichi, il testo
+                      personalizzato verra&apos; usato solo per questa richiesta.
                     </div>
                     <div className="grid gap-5">
                       <label className="space-y-2">
@@ -502,11 +513,14 @@ export default async function CoordinatorRequestDetailPage({
                         </span>
                         <textarea
                           name="certificate_heading_text"
-                          defaultValue={request.certificate_heading_text ?? ""}
+                          defaultValue={certificateHeadingTemplateSource}
                           rows={3}
                           placeholder={defaultCertificateHeading}
                           className={textareaClassName}
                         />
+                        <p className="text-xs leading-5 text-zinc-500">
+                          Puoi usare gli stessi placeholder disponibili nella dashboard admin.
+                        </p>
                       </label>
                       <label className="space-y-2">
                         <span className="text-sm font-medium text-zinc-800">
@@ -514,12 +528,32 @@ export default async function CoordinatorRequestDetailPage({
                         </span>
                         <textarea
                           name="certificate_body_text"
-                          defaultValue={request.certificate_body_text ?? ""}
+                          defaultValue={certificateBodyTemplateSource}
                           rows={10}
                           placeholder={defaultCertificateBody}
                           className={textareaClassName}
                         />
                       </label>
+                      <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                          Placeholder disponibili
+                        </p>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          {CERTIFICATE_TEMPLATE_PLACEHOLDERS.map((placeholder) => (
+                            <article
+                              key={placeholder.token}
+                              className="rounded-2xl border border-zinc-200 p-3"
+                            >
+                              <p className="font-mono text-xs text-zinc-950">
+                                {placeholder.token}
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-zinc-600">
+                                {placeholder.description}
+                              </p>
+                            </article>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </details>
@@ -537,7 +571,7 @@ export default async function CoordinatorRequestDetailPage({
                     formAction={approveCoordinatorRequestAction}
                     className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
                   >
-                    Approva richiesta e invia
+                    Approva richiesta
                   </button>
                   <button
                     type="submit"
@@ -554,13 +588,15 @@ export default async function CoordinatorRequestDetailPage({
                   Questa richiesta non e&apos; piu&apos; modificabile dal dashboard
                   perche&apos; lo stato attuale e&apos;{" "}
                   <strong>{statusMeta.label.toLowerCase()}</strong>.
-                  I dati rimangono visibili come storico della pratica.
+                  I dati della pratica restano visibili come storico, mentre sotto
+                  puoi ancora gestire generazione PDF, download e invio quando lo
+                  stato lo consente.
                 </article>
 
-                {(canFinalizeDelivery || request.pdf_storage_path) && (
+                {(canGeneratePdf || canSendDelivery || request.pdf_storage_path) && (
                   <div className="flex flex-wrap gap-3">
-                    {canFinalizeDelivery ? (
-                      <form action={finalizeCoordinatorRequestDeliveryAction} className="w-full space-y-4">
+                    {canGeneratePdf ? (
+                      <form action={generateCoordinatorRequestPdfAction} className="w-full space-y-4">
                         <input type="hidden" name="id" value={request.id} />
                         <input
                           type="hidden"
@@ -574,13 +610,19 @@ export default async function CoordinatorRequestDetailPage({
                             <span className="ml-2 font-normal text-zinc-500">(opzionale)</span>
                           </summary>
                           <div className="mt-4 space-y-4">
+                            <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm leading-6 text-zinc-600">
+                              Dopo l&apos;approvazione puoi ancora adattare il testo di
+                              questo certificato. Quando generi il PDF, il template
+                              globale dell&apos;admin resta il punto di partenza ma le
+                              modifiche salvate qui valgono solo per questa pratica.
+                            </div>
                             <label className="space-y-2">
                               <span className="text-sm font-medium text-zinc-800">
                                 Intestazione personalizzata
                               </span>
                               <textarea
                                 name="certificate_heading_text"
-                                defaultValue={request.certificate_heading_text ?? ""}
+                                defaultValue={certificateHeadingTemplateSource}
                                 rows={3}
                                 placeholder={defaultCertificateHeading}
                                 className={textareaClassName}
@@ -592,21 +634,39 @@ export default async function CoordinatorRequestDetailPage({
                               </span>
                               <textarea
                                 name="certificate_body_text"
-                                defaultValue={request.certificate_body_text ?? ""}
+                                defaultValue={certificateBodyTemplateSource}
                                 rows={10}
                                 placeholder={defaultCertificateBody}
                                 className={textareaClassName}
                               />
                             </label>
+                            <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-4">
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                                Placeholder disponibili
+                              </p>
+                              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                {CERTIFICATE_TEMPLATE_PLACEHOLDERS.map((placeholder) => (
+                                  <article
+                                    key={placeholder.token}
+                                    className="rounded-2xl border border-zinc-200 p-3"
+                                  >
+                                    <p className="font-mono text-xs text-zinc-950">
+                                      {placeholder.token}
+                                    </p>
+                                    <p className="mt-1 text-xs leading-5 text-zinc-600">
+                                      {placeholder.description}
+                                    </p>
+                                  </article>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         </details>
                         <button
                           type="submit"
                           className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
                         >
-                          {request.status === "approved"
-                            ? "Genera PDF e invia"
-                            : "Riprova consegna finale"}
+                          Genera PDF
                         </button>
                       </form>
                     ) : null}
@@ -618,6 +678,26 @@ export default async function CoordinatorRequestDetailPage({
                       >
                         Scarica PDF
                       </Link>
+                    ) : null}
+
+                    {canSendDelivery ? (
+                      <form action={finalizeCoordinatorRequestDeliveryAction}>
+                        <input type="hidden" name="id" value={request.id} />
+                        <input
+                          type="hidden"
+                          name="current_updated_at"
+                          value={request.updated_at}
+                        />
+                        <input type="hidden" name="redirect_to" value={requestPath} />
+                        <button
+                          type="submit"
+                          className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
+                        >
+                          {request.status === "approved"
+                            ? "Invia certificato"
+                            : "Riprova invio certificato"}
+                        </button>
+                      </form>
                     ) : null}
                   </div>
                 )}

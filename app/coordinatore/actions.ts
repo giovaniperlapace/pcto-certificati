@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assertCoordinator } from "@/lib/auth/admin";
-import { finalizeApprovedRequestDelivery } from "@/lib/certificates/finalize";
+import {
+  generateApprovedRequestPdf,
+  sendApprovedRequestDelivery,
+} from "@/lib/certificates/finalize";
+import {
+  loadCertificateTemplate,
+  validateCertificateTemplateText,
+} from "@/lib/certificates/templates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
 import {
@@ -22,6 +29,7 @@ import {
 const DASHBOARD_PATH = "/coordinatore";
 
 type AccessibleRequest = {
+  certificate_type: "pcto" | "volontariato";
   id: string;
   updated_at: string;
   status: "submitted" | "approved" | "rejected" | "completed" | "delivery_failed" | "cancelled";
@@ -218,11 +226,16 @@ function readEditableRequestValues(formData: FormData): EditableRequestValues {
   }
 
   if (certificateHeadingText) {
-    validateLength("intestazione certificato", certificateHeadingText, 300);
+    validateLength("intestazione certificato", certificateHeadingText, 500);
+    validateCertificateTemplateText(
+      "intestazione certificato",
+      certificateHeadingText,
+    );
   }
 
   if (certificateBodyText) {
-    validateLength("testo certificato", certificateBodyText, 6000);
+    validateLength("testo certificato", certificateBodyText, 8000);
+    validateCertificateTemplateText("testo certificato", certificateBodyText);
   }
 
   if (decisionNotes) {
@@ -308,11 +321,29 @@ function buildBaseUpdatePayload(
   };
 }
 
+async function normalizeCertificateTextOverrides(values: EditableRequestValues) {
+  const template = await loadCertificateTemplate(values.certificateType);
+
+  return {
+    ...values,
+    certificateHeadingText:
+      values.certificateHeadingText === template.headingTemplate
+        ? null
+        : values.certificateHeadingText,
+    certificateBodyText:
+      values.certificateBodyText === template.bodyTemplate
+        ? null
+        : values.certificateBodyText,
+  } satisfies EditableRequestValues;
+}
+
 async function loadAccessibleRequest(requestId: string) {
   const { supabase } = await assertCoordinator();
   const { data, error } = await supabase
     .from("certificate_requests")
-    .select("id, updated_at, status, school_id, school_year_id, service_id")
+    .select(
+      "id, updated_at, status, certificate_type, school_id, school_year_id, service_id",
+    )
     .eq("id", requestId)
     .maybeSingle();
 
@@ -426,7 +457,9 @@ export async function saveCoordinatorRequestAction(formData: FormData) {
       );
     }
 
-    const values = readEditableRequestValues(formData);
+    const values = await normalizeCertificateTextOverrides(
+      readEditableRequestValues(formData),
+    );
     const schoolEmail = await loadSchoolEmail(currentRequest.school_id);
     const payload = buildBaseUpdatePayload(values, { schoolEmail });
     const adminSupabase = createAdminClient();
@@ -498,7 +531,9 @@ export async function approveCoordinatorRequestAction(formData: FormData) {
       );
     }
 
-    const values = readEditableRequestValues(formData);
+    const values = await normalizeCertificateTextOverrides(
+      readEditableRequestValues(formData),
+    );
     const schoolEmail = await loadSchoolEmail(currentRequest.school_id);
     const now = new Date().toISOString();
     const hoursApproved = values.hoursApproved ?? values.hoursRequested;
@@ -558,27 +593,13 @@ export async function approveCoordinatorRequestAction(formData: FormData) {
       },
     });
 
-    const finalizationResult = await finalizeApprovedRequestDelivery({
-      requestId,
-      triggeredByUserId: user.id,
-    });
-
     revalidatePath(DASHBOARD_PATH);
     revalidatePath(buildCoordinatorRequestPath(requestId));
 
-    if (finalizationResult.finalStatus === "completed") {
-      redirectWithMessage(
-        buildCoordinatorRequestPath(requestId),
-        "success",
-        "Richiesta approvata, PDF generato e invio finale completato.",
-      );
-    }
-
     redirectWithMessage(
       buildCoordinatorRequestPath(requestId),
-      "error",
-      finalizationResult.errorMessage ??
-        "Richiesta approvata, ma la consegna finale richiede attenzione.",
+      "success",
+      "Richiesta approvata. Ora puoi generare il PDF e decidere se scaricarlo o inviarlo.",
     );
   } catch (error) {
     redirectWithMessage(
@@ -589,7 +610,7 @@ export async function approveCoordinatorRequestAction(formData: FormData) {
   }
 }
 
-export async function finalizeCoordinatorRequestDeliveryAction(formData: FormData) {
+export async function generateCoordinatorRequestPdfAction(formData: FormData) {
   const redirectTo = readRedirectPath(formData, getRequestPathFromForm(formData));
 
   try {
@@ -610,24 +631,37 @@ export async function finalizeCoordinatorRequestDeliveryAction(formData: FormDat
 
     if (currentRequest.updated_at !== expectedUpdatedAt) {
       throw new Error(
-        "La richiesta e' cambiata nel frattempo. Ricarica la pagina prima di rilanciare la consegna finale.",
+        "La richiesta e' cambiata nel frattempo. Ricarica la pagina prima di generare il PDF.",
       );
     }
 
     if (certificateHeadingText) {
-      validateLength("intestazione certificato", certificateHeadingText, 300);
+      validateLength("intestazione certificato", certificateHeadingText, 500);
+      validateCertificateTemplateText(
+        "intestazione certificato",
+        certificateHeadingText,
+      );
     }
 
     if (certificateBodyText) {
-      validateLength("testo certificato", certificateBodyText, 6000);
+      validateLength("testo certificato", certificateBodyText, 8000);
+      validateCertificateTemplateText("testo certificato", certificateBodyText);
     }
+
+    const template = await loadCertificateTemplate(currentRequest.certificate_type);
+    const normalizedHeadingText =
+      certificateHeadingText === template.headingTemplate
+        ? null
+        : certificateHeadingText;
+    const normalizedBodyText =
+      certificateBodyText === template.bodyTemplate ? null : certificateBodyText;
 
     const adminSupabase = createAdminClient();
     const { data: textUpdatedRequest, error: textUpdateError } = await adminSupabase
       .from("certificate_requests")
       .update({
-        certificate_heading_text: certificateHeadingText,
-        certificate_body_text: certificateBodyText,
+        certificate_heading_text: normalizedHeadingText,
+        certificate_body_text: normalizedBodyText,
       })
       .eq("id", requestId)
       .eq("updated_at", expectedUpdatedAt)
@@ -640,11 +674,65 @@ export async function finalizeCoordinatorRequestDeliveryAction(formData: FormDat
 
     if (!textUpdatedRequest) {
       throw new Error(
-        "La richiesta e' cambiata nel frattempo. Ricarica la pagina prima di rilanciare la consegna finale.",
+        "La richiesta e' cambiata nel frattempo. Ricarica la pagina prima di generare il PDF.",
       );
     }
 
-    const finalizationResult = await finalizeApprovedRequestDelivery({
+    const generationResult = await generateApprovedRequestPdf({
+      requestId,
+      triggeredByUserId: user.id,
+    });
+
+    revalidatePath(DASHBOARD_PATH);
+    revalidatePath(buildCoordinatorRequestPath(requestId));
+
+    if (generationResult.status === "approved") {
+      redirectWithMessage(
+        buildCoordinatorRequestPath(requestId),
+        "success",
+        "PDF generato con successo. Ora puoi scaricarlo oppure inviarlo via email.",
+      );
+    }
+
+    redirectWithMessage(
+      buildCoordinatorRequestPath(requestId),
+      "error",
+      generationResult.errorMessage ??
+        "La generazione del PDF non e' stata completata.",
+    );
+  } catch (error) {
+    redirectWithMessage(
+      redirectTo,
+      "error",
+      handleActionError(
+        error,
+        "Impossibile generare il PDF del certificato.",
+      ),
+    );
+  }
+}
+
+export async function finalizeCoordinatorRequestDeliveryAction(formData: FormData) {
+  const redirectTo = readRedirectPath(formData, getRequestPathFromForm(formData));
+
+  try {
+    const { coordinator, user } = await assertCoordinator();
+
+    if (!coordinator) {
+      throw new Error("Coordinatore non disponibile.");
+    }
+
+    const requestId = readRequiredString(formData, "id");
+    const expectedUpdatedAt = readRequiredString(formData, "current_updated_at");
+    const currentRequest = await loadFinalizableRequest(requestId);
+
+    if (currentRequest.updated_at !== expectedUpdatedAt) {
+      throw new Error(
+        "La richiesta e' cambiata nel frattempo. Ricarica la pagina prima di inviare il certificato.",
+      );
+    }
+
+    const finalizationResult = await sendApprovedRequestDelivery({
       requestId,
       triggeredByUserId: user.id,
     });
@@ -656,7 +744,7 @@ export async function finalizeCoordinatorRequestDeliveryAction(formData: FormDat
       redirectWithMessage(
         buildCoordinatorRequestPath(requestId),
         "success",
-        "Consegna finale completata con successo.",
+        "Invio del certificato completato con successo.",
       );
     }
 
@@ -664,7 +752,7 @@ export async function finalizeCoordinatorRequestDeliveryAction(formData: FormDat
       buildCoordinatorRequestPath(requestId),
       "error",
       finalizationResult.errorMessage ??
-        "La consegna finale non e' stata completata.",
+        "L'invio del certificato non e' stato completato.",
     );
   } catch (error) {
     redirectWithMessage(
@@ -672,7 +760,7 @@ export async function finalizeCoordinatorRequestDeliveryAction(formData: FormDat
       "error",
       handleActionError(
         error,
-        "Impossibile completare la consegna finale del certificato.",
+        "Impossibile completare l'invio finale del certificato.",
       ),
     );
   }

@@ -19,7 +19,14 @@ type DeliveryAttemptResult = {
   status: "sent" | "failed";
 };
 
-export type FinalizeRequestDeliveryResult = {
+export type GenerateRequestPdfResult = {
+  errorMessage: string | null;
+  pdfGeneratedAt: string | null;
+  pdfStoragePath: string | null;
+  status: "approved" | "delivery_failed";
+};
+
+export type SendRequestDeliveryResult = {
   deliveryResults: DeliveryAttemptResult[];
   errorMessage: string | null;
   finalStatus: FinalDeliveryStatus;
@@ -34,7 +41,7 @@ function toErrorMessage(error: unknown, fallbackMessage: string) {
   return fallbackMessage;
 }
 
-function canFinalizeRequestStatus(status: string) {
+function canProcessApprovedRequestStatus(status: string) {
   return status === "approved" || status === "delivery_failed";
 }
 
@@ -88,6 +95,19 @@ async function uploadCertificatePdf(params: {
   }
 
   return storagePath;
+}
+
+async function downloadCertificatePdf(storagePath: string) {
+  const adminSupabase = createAdminClient();
+  const { data, error } = await adminSupabase.storage
+    .from(CERTIFICATE_STORAGE_BUCKET)
+    .download(storagePath);
+
+  if (error) {
+    throw error;
+  }
+
+  return new Uint8Array(await data.arrayBuffer());
 }
 
 async function recordSystemEvent(params: {
@@ -265,10 +285,7 @@ async function sendEmailWithDeliveryLog(params: {
       errorMessage: null,
     } satisfies DeliveryAttemptResult;
   } catch (error) {
-    const errorMessage = toErrorMessage(
-      error,
-      "Invio email non riuscito.",
-    );
+    const errorMessage = toErrorMessage(error, "Invio email non riuscito.");
     const { error: updateError } = await adminSupabase
       .from("email_deliveries")
       .update({
@@ -293,11 +310,9 @@ async function sendEmailWithDeliveryLog(params: {
   }
 }
 
-function getFinalRequestUpdate(params: {
+function getDeliveryRequestUpdate(params: {
   deliveryResults: DeliveryAttemptResult[];
-  pdfGeneratedAt: string;
   request: CertificateDeliveryRequest;
-  storagePath: string;
 }) {
   const studentSentAt =
     params.request.student_emailed_at ??
@@ -321,8 +336,6 @@ function getFinalRequestUpdate(params: {
     (!params.request.send_to_teacher || Boolean(teacherSentAt));
 
   const update: TablesUpdate<"certificate_requests"> = {
-    pdf_generated_at: params.pdfGeneratedAt,
-    pdf_storage_path: params.storagePath,
     status: deliveryCompleted ? "completed" : "delivery_failed",
   };
 
@@ -344,15 +357,15 @@ function getFinalRequestUpdate(params: {
   } as const;
 }
 
-export async function finalizeApprovedRequestDelivery(params: {
+export async function generateApprovedRequestPdf(params: {
   requestId: string;
   triggeredByUserId: string;
 }) {
   const adminSupabase = createAdminClient();
   const request = await loadRequestForDelivery(params.requestId);
 
-  if (!canFinalizeRequestStatus(request.status)) {
-    throw new Error("La richiesta non e' in uno stato che consente la consegna finale.");
+  if (!canProcessApprovedRequestStatus(request.status)) {
+    throw new Error("La richiesta non e' in uno stato che consente la generazione del PDF.");
   }
 
   try {
@@ -363,13 +376,18 @@ export async function finalizeApprovedRequestDelivery(params: {
     });
     const pdfGeneratedAt = new Date().toISOString();
 
-    await adminSupabase
+    const { error: updateError } = await adminSupabase
       .from("certificate_requests")
       .update({
         pdf_generated_at: pdfGeneratedAt,
         pdf_storage_path: storagePath,
+        status: "approved",
       })
       .eq("id", request.id);
+
+    if (updateError) {
+      throw updateError;
+    }
 
     await recordSystemEvent({
       requestId: request.id,
@@ -381,7 +399,89 @@ export async function finalizeApprovedRequestDelivery(params: {
       },
     });
 
+    return {
+      status: "approved",
+      pdfGeneratedAt,
+      pdfStoragePath: storagePath,
+      errorMessage: null,
+    } satisfies GenerateRequestPdfResult;
+  } catch (error) {
+    const errorMessage = toErrorMessage(
+      error,
+      "Impossibile completare la generazione del PDF del certificato.",
+    );
+
+    const { error: updateError } = await adminSupabase
+      .from("certificate_requests")
+      .update({
+        status: "delivery_failed",
+      })
+      .eq("id", request.id);
+
+    if (updateError) {
+      console.error("Unable to mark request as delivery_failed", updateError);
+    }
+
+    await recordSystemEvent({
+      requestId: request.id,
+      eventType: "certificate_delivery_failed",
+      payload: {
+        error_message: errorMessage,
+        pdf_storage_path: request.pdf_storage_path,
+        triggered_by_user_id: params.triggeredByUserId,
+      },
+    });
+
+    return {
+      status: "delivery_failed",
+      pdfGeneratedAt: request.pdf_generated_at,
+      pdfStoragePath: request.pdf_storage_path,
+      errorMessage,
+    } satisfies GenerateRequestPdfResult;
+  }
+}
+
+export async function sendApprovedRequestDelivery(params: {
+  requestId: string;
+  triggeredByUserId: string;
+}) {
+  const adminSupabase = createAdminClient();
+  const request = await loadRequestForDelivery(params.requestId);
+
+  if (!canProcessApprovedRequestStatus(request.status)) {
+    throw new Error("La richiesta non e' in uno stato che consente l'invio finale.");
+  }
+
+  if (!request.pdf_storage_path) {
+    throw new Error(
+      "Genera prima il PDF del certificato, poi potrai scaricarlo o inviarlo.",
+    );
+  }
+
+  try {
     const pendingRecipients = buildPendingRecipients(request);
+
+    if (pendingRecipients.length === 0) {
+      const { error: updateError } = await adminSupabase
+        .from("certificate_requests")
+        .update({
+          status: "completed",
+        })
+        .eq("id", request.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return {
+        finalStatus: "completed",
+        pdfStoragePath: request.pdf_storage_path,
+        deliveryResults: [],
+        errorMessage: null,
+      } satisfies SendRequestDeliveryResult;
+    }
+
+    const pdfBytes = await downloadCertificatePdf(request.pdf_storage_path);
     const deliveryResults: DeliveryAttemptResult[] = [];
 
     for (const recipient of pendingRecipients) {
@@ -395,11 +495,9 @@ export async function finalizeApprovedRequestDelivery(params: {
       );
     }
 
-    const { finalStatus, update } = getFinalRequestUpdate({
+    const { finalStatus, update } = getDeliveryRequestUpdate({
       request,
       deliveryResults,
-      pdfGeneratedAt,
-      storagePath,
     });
 
     const { error: updateError } = await adminSupabase
@@ -419,24 +517,24 @@ export async function finalizeApprovedRequestDelivery(params: {
           : "certificate_delivery_failed",
       payload: {
         delivery_results: deliveryResults,
-        pdf_storage_path: storagePath,
+        pdf_storage_path: request.pdf_storage_path,
         triggered_by_user_id: params.triggeredByUserId,
       },
     });
 
     return {
       finalStatus,
-      pdfStoragePath: storagePath,
+      pdfStoragePath: request.pdf_storage_path,
       deliveryResults,
       errorMessage:
         finalStatus === "completed"
           ? null
           : "La consegna finale non e' stata completata per tutti i destinatari previsti.",
-    } satisfies FinalizeRequestDeliveryResult;
+    } satisfies SendRequestDeliveryResult;
   } catch (error) {
     const errorMessage = toErrorMessage(
       error,
-      "Impossibile completare la generazione o l'invio finale del certificato.",
+      "Impossibile completare l'invio finale del certificato.",
     );
 
     const { error: updateError } = await adminSupabase
@@ -465,6 +563,6 @@ export async function finalizeApprovedRequestDelivery(params: {
       pdfStoragePath: request.pdf_storage_path,
       deliveryResults: [],
       errorMessage,
-    } satisfies FinalizeRequestDeliveryResult;
+    } satisfies SendRequestDeliveryResult;
   }
 }

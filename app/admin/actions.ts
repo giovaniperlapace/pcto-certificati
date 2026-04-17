@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/admin";
+import { validateCertificateTemplateText } from "@/lib/certificates/templates";
 import {
   createAdminClient,
   ensureAuthUserForEmail,
@@ -50,10 +51,97 @@ function handleActionError(error: unknown, fallbackMessage: string) {
   return fallbackMessage;
 }
 
+function validateLength(label: string, value: string, maxLength: number) {
+  if (value.length > maxLength) {
+    throw new Error(
+      `Il campo ${label} non puo' superare ${maxLength} caratteri.`,
+    );
+  }
+}
+
 export async function signOutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/");
+}
+
+export async function saveCertificateTemplatesAction(formData: FormData) {
+  const redirectTo = readRedirectPath(formData, "/admin");
+
+  try {
+    const { supabase } = await assertAdmin();
+    const pctoHeadingTemplate = readRequiredString(
+      formData,
+      "pcto_heading_template",
+    );
+    const pctoBodyTemplate = readRequiredString(formData, "pcto_body_template");
+    const volunteeringHeadingTemplate = readRequiredString(
+      formData,
+      "volontariato_heading_template",
+    );
+    const volunteeringBodyTemplate = readRequiredString(
+      formData,
+      "volontariato_body_template",
+    );
+
+    validateLength("intestazione PCTO", pctoHeadingTemplate, 500);
+    validateLength("testo PCTO", pctoBodyTemplate, 8000);
+    validateLength(
+      "intestazione volontariato",
+      volunteeringHeadingTemplate,
+      500,
+    );
+    validateLength("testo volontariato", volunteeringBodyTemplate, 8000);
+
+    validateCertificateTemplateText("intestazione PCTO", pctoHeadingTemplate);
+    validateCertificateTemplateText("testo PCTO", pctoBodyTemplate);
+    validateCertificateTemplateText(
+      "intestazione volontariato",
+      volunteeringHeadingTemplate,
+    );
+    validateCertificateTemplateText(
+      "testo volontariato",
+      volunteeringBodyTemplate,
+    );
+
+    const { error } = await supabase.from("certificate_templates").upsert(
+      [
+        {
+          certificate_type: "pcto",
+          heading_template: pctoHeadingTemplate,
+          body_template: pctoBodyTemplate,
+        },
+        {
+          certificate_type: "volontariato",
+          heading_template: volunteeringHeadingTemplate,
+          body_template: volunteeringBodyTemplate,
+        },
+      ],
+      {
+        onConflict: "certificate_type",
+      },
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    revalidatePath("/admin");
+    redirectWithMessage(
+      redirectTo,
+      "success",
+      "Template certificati aggiornati.",
+    );
+  } catch (error) {
+    redirectWithMessage(
+      redirectTo,
+      "error",
+      handleActionError(
+        error,
+        "Impossibile aggiornare i template dei certificati.",
+      ),
+    );
+  }
 }
 
 export async function upsertSchoolAction(formData: FormData) {

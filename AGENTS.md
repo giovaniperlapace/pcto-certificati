@@ -140,6 +140,8 @@ Gia' presente:
   - `public/certificate-assets/footer.png`
   - `public/certificate-assets/signature.png`
 - testi base certificato derivati dai template legacy RMarkdown
+- gestione admin dei template base `pcto` e `volontariato` dalla dashboard
+  con supporto ai placeholder dinamici
 - possibilita' opzionale di personalizzare intestazione e corpo del certificato
   per la singola richiesta senza interrompere il flusso standard
 
@@ -301,6 +303,7 @@ Caso gia' incontrato e risolto:
 - `coordinators`
 - `service_coordinators`
 - `user_roles`
+- `certificate_templates`
 - `certificate_requests`
 - `request_events`
 - `email_deliveries`
@@ -316,6 +319,7 @@ Caso gia' incontrato e risolto:
 - `supabase/migrations/20260415124941_init_mvp_schema.sql`
 - `supabase/migrations/20260416094000_allow_manual-school-and-service-submissions.sql`
 - `supabase/migrations/20260416234500_add_certificate_text_overrides.sql`
+- `supabase/migrations/20260417173000_add_certificate_templates.sql`
 - `supabase/config.toml`
 - `lib/supabase/database.types.ts`
 
@@ -371,6 +375,7 @@ Caso gia' incontrato e risolto:
 - `components/coordinator/request-status-badge.tsx`
 - `lib/auth/admin.ts`
 - `lib/certificates/content.ts`
+- `lib/certificates/templates.ts`
 - `lib/certificates/email.ts`
 - `lib/certificates/finalize.ts`
 - `lib/certificates/pdf.ts`
@@ -474,6 +479,7 @@ La Fase 6 ora copre gia':
 - download del PDF dal dettaglio richiesta
 - invio email finale a studente, scuola e docente
 - aggiornamento stato finale richiesta e log invii
+- gestione admin dei template base certificato con placeholder
 - personalizzazione opzionale del testo del certificato per singola richiesta
 
 Note operative:

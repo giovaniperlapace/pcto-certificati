@@ -19,6 +19,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className="flex flex-wrap items-center gap-8 sm:gap-12">
               <a
                 href="https://www.giovaniperlapace.it"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="transition hover:opacity-90"
                 aria-label="Vai al sito Giovani per la Pace"
               >
@@ -33,6 +35,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               </a>
               <a
                 href="https://www.santegidio.org"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="transition hover:opacity-90"
                 aria-label="Vai al sito Comunità di Sant'Egidio"
               >

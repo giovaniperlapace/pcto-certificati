@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CoordinatorSearchSelect } from "@/components/admin/coordinator-search-select";
 import { FlashMessage } from "@/components/admin/flash-message";
 import { PageHeader } from "@/components/admin/page-header";
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import {
   addServiceCoordinatorAction,
   removeServiceCoordinatorAction,
@@ -139,12 +140,11 @@ export default async function ServiceAssignmentsPage({
                 </label>
 
                 <div className="md:col-span-2">
-                  <button
-                    type="submit"
-                    className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-                  >
-                    Collega coordinatore
-                  </button>
+                  <PendingSubmitButton
+                    className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
+                    idleLabel="Collega coordinatore"
+                    pendingLabel="Collegamento in corso..."
+                  />
                 </div>
               </form>
             )}
@@ -237,12 +237,11 @@ export default async function ServiceAssignmentsPage({
                   </label>
 
                   <div className="md:col-span-2">
-                    <button
-                      type="submit"
-                      className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-                    >
-                      Aggiorna assegnazione
-                    </button>
+                    <PendingSubmitButton
+                      className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
+                      idleLabel="Aggiorna assegnazione"
+                      pendingLabel="Aggiornamento in corso..."
+                    />
                   </div>
                 </form>
 
@@ -258,12 +257,11 @@ export default async function ServiceAssignmentsPage({
                     name="coordinator_id"
                     value={coordinator.id}
                   />
-                  <button
-                    type="submit"
-                    className="rounded-full border border-rose-200 px-5 py-3 text-sm font-medium text-rose-700 transition hover:border-rose-500 hover:text-rose-800"
-                  >
-                    Rimuovi dal servizio
-                  </button>
+                  <PendingSubmitButton
+                    className="rounded-full border border-rose-200 px-5 py-3 text-sm font-medium text-rose-700 transition hover:border-rose-500 hover:text-rose-800 disabled:hover:border-rose-200 disabled:hover:text-rose-700"
+                    idleLabel="Rimuovi dal servizio"
+                    pendingLabel="Rimozione in corso..."
+                  />
                 </form>
               </div>
               </article>

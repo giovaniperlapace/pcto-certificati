@@ -541,6 +541,7 @@ Punti tecnici gia' adottati in Fase 6:
 - tenere la logica sensibile lato server
 - riusare i tipi generati in `lib/supabase/database.types.ts`
 - quando possibile, mantenere la UI admin nel pattern tabelle/modal gia' introdotto invece di tornare a form sparsi nella pagina
+- per i pulsanti che avviano azioni non immediate lato server usare il pattern pending condiviso in `components/ui/pending-submit-button.tsx`, con bottone disabilitato e feedback visivo durante l'attesa
 - dopo modifiche significative eseguire sempre:
   - `npm run lint`
   - `npm run build`

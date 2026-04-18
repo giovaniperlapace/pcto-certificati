@@ -3,6 +3,7 @@
 import type { MouseEvent, ReactNode } from "react";
 import { useEffect } from "react";
 import { useEffectEvent } from "react";
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 
 type TableMetric = {
   label: string;
@@ -325,24 +326,24 @@ export function TableFormActions({
   return (
     <div className="flex flex-wrap items-center justify-end gap-3 border-t border-zinc-200 pt-5">
       {destructiveAction ? (
-        <button
-          type="submit"
+        <PendingSubmitButton
           formAction={destructiveAction.formAction}
           formNoValidate
           onClick={handleDestructiveClick}
           className="mr-auto rounded-full border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
-        >
-          {destructiveAction.label}
-        </button>
+          idleLabel={destructiveAction.label}
+          pendingLabel="Eliminazione in corso..."
+          pendingLabelMode="clicked"
+        />
       ) : null}
 
       <TableActionButton onClick={onCancel}>Annulla</TableActionButton>
-      <button
-        type="submit"
-        className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-      >
-        {submitLabel}
-      </button>
+      <PendingSubmitButton
+        className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
+        idleLabel={submitLabel}
+        pendingLabel="Salvataggio in corso..."
+        pendingLabelMode="clicked"
+      />
     </div>
   );
 }

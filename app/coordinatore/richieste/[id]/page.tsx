@@ -534,27 +534,27 @@ export default async function CoordinatorRequestDetailPage({
                 </details>
 
                 <div className="flex flex-wrap gap-3">
-                  <button
-                    type="submit"
+                  <PendingSubmitButton
                     formAction={saveCoordinatorRequestAction}
                     className="rounded-full border border-zinc-200 bg-white px-5 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
-                  >
-                    Salva modifiche
-                  </button>
-                  <button
-                    type="submit"
+                    idleLabel="Salva modifiche"
+                    pendingLabel="Salvataggio in corso..."
+                    pendingLabelMode="clicked"
+                  />
+                  <PendingSubmitButton
                     formAction={approveCoordinatorRequestAction}
                     className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-                  >
-                    Approva richiesta
-                  </button>
-                  <button
-                    type="submit"
+                    idleLabel="Approva richiesta"
+                    pendingLabel="Approvazione in corso..."
+                    pendingLabelMode="clicked"
+                  />
+                  <PendingSubmitButton
                     formAction={rejectCoordinatorRequestAction}
                     className="rounded-full border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
-                  >
-                    Rifiuta richiesta
-                  </button>
+                    idleLabel="Rifiuta richiesta"
+                    pendingLabel="Rifiuto in corso..."
+                    pendingLabelMode="clicked"
+                  />
                 </div>
               </form>
             ) : (
@@ -675,10 +675,6 @@ export default async function CoordinatorRequestDetailPage({
                           }
                           pendingLabel="Invio certificato in corso..."
                         />
-                        <p className="text-sm text-zinc-500">
-                          Dopo il click il pulsante si disattiva finche&apos; il server non
-                          conclude l&apos;invio.
-                        </p>
                       </form>
                     ) : null}
                   </div>
@@ -732,7 +728,6 @@ export default async function CoordinatorRequestDetailPage({
               <p>
                 Revisore: {reviewer ? `${reviewer.first_name} ${reviewer.last_name}` : "-"}
               </p>
-              <p>PDF storage path: {request.pdf_storage_path ?? "-"}</p>
               <p>
                 Download PDF:{" "}
                 {request.pdf_storage_path ? (

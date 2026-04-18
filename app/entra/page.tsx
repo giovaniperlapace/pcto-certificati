@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { FlashMessage } from "@/components/admin/flash-message";
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { getAuthContext } from "@/lib/auth/admin";
 import { sendMagicLinkAction } from "@/app/entra/actions";
 
@@ -97,12 +98,11 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                 </p>
               </label>
 
-              <button
-                type="submit"
-                className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-              >
-                Invia Magic Link
-              </button>
+              <PendingSubmitButton
+                className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
+                idleLabel="Invia Magic Link"
+                pendingLabel="Invio Magic Link in corso..."
+              />
             </form>
           </div>
         </section>

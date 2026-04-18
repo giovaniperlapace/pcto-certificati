@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FlashMessage } from "@/components/admin/flash-message";
 import { PageHeader } from "@/components/admin/page-header";
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import {
   saveCertificateSignatureSettingsAction,
   saveCertificateTemplatesAction,
@@ -241,12 +242,11 @@ export default async function AdminDashboardPage({
               Se inserisci un placeholder non riconosciuto, il sistema blocca il
               salvataggio per evitare errori nei PDF.
             </p>
-            <button
-              type="submit"
-              className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-            >
-              Salva template certificati
-            </button>
+            <PendingSubmitButton
+              className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
+              idleLabel="Salva template certificati"
+              pendingLabel="Salvataggio template in corso..."
+            />
           </div>
         </form>
       </section>
@@ -342,12 +342,11 @@ export default async function AdminDashboardPage({
             <p className="text-sm text-zinc-500">
               Le modifiche si applicano ai PDF generati da questo momento in poi.
             </p>
-            <button
-              type="submit"
-              className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-            >
-              Salva impostazioni firma
-            </button>
+            <PendingSubmitButton
+              className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
+              idleLabel="Salva impostazioni firma"
+              pendingLabel="Salvataggio firma in corso..."
+            />
           </div>
         </form>
       </section>

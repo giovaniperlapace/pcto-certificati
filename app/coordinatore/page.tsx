@@ -217,118 +217,134 @@ export default async function CoordinatorDashboardPage({
         ))}
       </section>
 
-      <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-zinc-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-              Richieste assegnate
-            </h2>
-            <p className="max-w-3xl text-sm leading-6 text-zinc-600">
-              Il filtro per stato crea viste operative immediate. La lista qui sotto
-              rispetta sempre i soli servizi collegati a questo coordinatore.
-            </p>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+        <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-zinc-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
+                Richieste assegnate
+              </h2>
+              <p className="max-w-3xl text-sm leading-6 text-zinc-600">
+                Il filtro per stato crea viste operative immediate. La lista qui sotto
+                rispetta sempre i soli servizi collegati a questo coordinatore.
+              </p>
+            </div>
+
+            <form className="flex flex-wrap items-center gap-3" action="/coordinatore">
+              <input type="hidden" name="status" value={selectedStatus} />
+              <label className="flex items-center gap-2 text-sm text-zinc-600">
+                <span>Servizio</span>
+                <select
+                  name="service"
+                  defaultValue={selectedServiceId ?? ""}
+                  className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700 outline-none transition focus:border-zinc-950"
+                >
+                  <option value="">Tutti i servizi</option>
+                  {assignedServices.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="submit"
+                className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
+              >
+                Applica filtro
+              </button>
+              {selectedServiceId ? (
+                <Link
+                  href={`/coordinatore?status=${selectedStatus}`}
+                  className="text-sm font-medium text-zinc-500 transition hover:text-zinc-950"
+                >
+                  Azzera servizio
+                </Link>
+              ) : null}
+            </form>
           </div>
 
-          <form className="flex flex-wrap items-center gap-3" action="/coordinatore">
-            <input type="hidden" name="status" value={selectedStatus} />
-            <label className="flex items-center gap-2 text-sm text-zinc-600">
-              <span>Servizio</span>
-              <select
-                name="service"
-                defaultValue={selectedServiceId ?? ""}
-                className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700 outline-none transition focus:border-zinc-950"
-              >
-                <option value="">Tutti i servizi</option>
-                {assignedServices.map((service) => (
-                  <option key={service.id} value={service.id}>
-                    {service.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="submit"
-              className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Link
+              href={`/coordinatore?status=all${selectedServiceId ? `&service=${selectedServiceId}` : ""}`}
+              className={[
+                "rounded-full border px-3 py-2 text-sm font-medium transition",
+                selectedStatus === "all"
+                  ? "border-zinc-950 bg-zinc-950 text-white"
+                  : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-950 hover:text-zinc-950",
+              ].join(" ")}
             >
-              Applica filtro
-            </button>
-            {selectedServiceId ? (
-              <Link
-                href={`/coordinatore?status=${selectedStatus}`}
-                className="text-sm font-medium text-zinc-500 transition hover:text-zinc-950"
-              >
-                Azzera servizio
-              </Link>
-            ) : null}
-          </form>
-        </div>
+              Tutte ({totalRequestCount})
+            </Link>
+            {REQUEST_STATUS_ORDER.map((status) => {
+              const meta = getRequestStatusMeta(status);
 
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link
-            href={`/coordinatore?status=all${selectedServiceId ? `&service=${selectedServiceId}` : ""}`}
-            className={[
-              "rounded-full border px-3 py-2 text-sm font-medium transition",
-              selectedStatus === "all"
-                ? "border-zinc-950 bg-zinc-950 text-white"
-                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-950 hover:text-zinc-950",
-            ].join(" ")}
-          >
-            Tutte ({totalRequestCount})
-          </Link>
-          {REQUEST_STATUS_ORDER.map((status) => {
-            const meta = getRequestStatusMeta(status);
+              return (
+                <Link
+                  key={status}
+                  href={`/coordinatore?status=${status}${selectedServiceId ? `&service=${selectedServiceId}` : ""}`}
+                  className={[
+                    "rounded-full border px-3 py-2 text-sm font-medium transition",
+                    selectedStatus === status
+                      ? "border-zinc-950 bg-zinc-950 text-white"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-950 hover:text-zinc-950",
+                  ].join(" ")}
+                  title={meta.description}
+                >
+                  {meta.label} ({statusCounts[status]})
+                </Link>
+              );
+            })}
+          </div>
 
-            return (
-              <Link
-                key={status}
-                href={`/coordinatore?status=${status}${selectedServiceId ? `&service=${selectedServiceId}` : ""}`}
-                className={[
-                  "rounded-full border px-3 py-2 text-sm font-medium transition",
-                  selectedStatus === status
-                    ? "border-zinc-950 bg-zinc-950 text-white"
-                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-950 hover:text-zinc-950",
-                ].join(" ")}
-                title={meta.description}
-              >
-                {meta.label} ({statusCounts[status]})
-              </Link>
-            );
-          })}
-        </div>
+          <div className="mt-6 grid gap-4">
+            {requests && requests.length > 0 ? (
+              requests.map((request) => (
+                <article
+                  key={request.id}
+                  className="rounded-2xl border border-zinc-200 p-4 transition hover:border-zinc-950"
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <RequestStatusBadge status={request.status} />
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-700">
+                            {request.certificate_type === "pcto"
+                              ? "PCTO"
+                              : "Volontariato"}
+                          </span>
+                          <span className="text-xs text-zinc-500">
+                            Inviata il {formatDateTime(request.submitted_at)}
+                          </span>
+                        </div>
 
-        <div className="mt-6 grid gap-4">
-          {requests && requests.length > 0 ? (
-            requests.map((request) => (
-              <article
-                key={request.id}
-                className="rounded-2xl border border-zinc-200 p-5 transition hover:border-zinc-950"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <RequestStatusBadge status={request.status} />
-                      <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                        {request.certificate_type === "pcto"
-                          ? "PCTO"
-                          : "Volontariato"}
-                      </span>
+                        <div className="min-w-0">
+                          <h3 className="text-base font-semibold text-zinc-950">
+                            {request.student_first_name} {request.student_last_name}
+                          </h3>
+                          <p className="text-sm text-zinc-600">
+                            {request.student_email} · Classe {request.class_label}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start lg:justify-end">
+                        <Link
+                          href={buildCoordinatorRequestPath(request.id)}
+                          className="inline-flex rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
+                        >
+                          Apri dettaglio
+                        </Link>
+                      </div>
                     </div>
 
-                    <div>
-                      <h3 className="text-lg font-semibold text-zinc-950">
-                        {request.student_first_name} {request.student_last_name}
-                      </h3>
-                      <p className="text-sm text-zinc-600">
-                        {request.student_email} · Classe {request.class_label}
-                      </p>
-                    </div>
-
-                    <div className="space-y-1 text-sm text-zinc-600">
-                      <p>
+                    <div className="grid gap-2 text-sm text-zinc-600 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto_auto] md:items-center md:gap-x-4">
+                      <p className="min-w-0 truncate">
                         <span className="font-medium text-zinc-800">Servizio:</span>{" "}
                         {request.service_name_snapshot}
                       </p>
-                      <p>
+                      <p className="min-w-0 truncate">
                         <span className="font-medium text-zinc-800">Scuola:</span>{" "}
                         {request.school_name_snapshot}
                       </p>
@@ -336,107 +352,89 @@ export default async function CoordinatorDashboardPage({
                         <span className="font-medium text-zinc-800">Ore:</span>{" "}
                         {request.hours_approved ?? request.hours_requested ?? "-"}
                       </p>
+                      <p className="text-zinc-500 md:text-right">
+                        Aggiornata il {formatDateTime(request.updated_at)}
+                      </p>
                     </div>
                   </div>
+                </article>
+              ))
+            ) : (
+              <article className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 text-sm leading-6 text-zinc-600">
+                Nessuna richiesta trovata per i filtri correnti. Puoi cambiare stato
+                o servizio per esplorare le altre viste del dashboard.
+              </article>
+            )}
+          </div>
+        </section>
 
-                  <div className="space-y-3 text-sm text-zinc-500 lg:text-right">
-                    <div>
-                      <p>Inviata il {formatDateTime(request.submitted_at)}</p>
-                      <p>Aggiornata il {formatDateTime(request.updated_at)}</p>
+        <aside className="xl:sticky xl:top-6 xl:self-start">
+          <section className="rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-200 pb-3">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Servizi
+                </h2>
+                <p className="mt-1 text-sm text-zinc-600">Riepilogo assegnazioni.</p>
+              </div>
+
+              <div className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-700">
+                {assignedServices.length}
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-2.5">
+              {assignedServices.length === 0 ? (
+                <article className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  Nessun servizio assegnato al momento.
+                </article>
+              ) : (
+                assignedServices.map((service) => (
+                  <article
+                    key={service.id}
+                    className="rounded-2xl border border-zinc-200 p-3"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <h3 className="text-sm font-semibold leading-5 text-zinc-950">
+                          {service.name}
+                        </h3>
+                        <span
+                          className={[
+                            "rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                            service.is_active
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-zinc-200 bg-zinc-100 text-zinc-700",
+                          ].join(" ")}
+                        >
+                          {service.is_active ? "Attivo" : "Off"}
+                        </span>
+                      </div>
+
+                      <p className="text-xs leading-5 text-zinc-600">
+                        {service.weekday} · {service.schedule_label}
+                      </p>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {service.is_primary ? (
+                          <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                            Principale
+                          </span>
+                        ) : null}
+                        {service.receives_new_request_notifications ? (
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] font-medium text-zinc-700">
+                            Notifiche
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                    <Link
-                      href={buildCoordinatorRequestPath(request.id)}
-                      className="inline-flex rounded-full border border-zinc-200 bg-white px-4 py-2 font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
-                    >
-                      Apri dettaglio
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            ))
-          ) : (
-            <article className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 text-sm leading-6 text-zinc-600">
-              Nessuna richiesta trovata per i filtri correnti. Puoi cambiare stato
-              o servizio per esplorare le altre viste del dashboard.
-            </article>
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-4">
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-              Servizi assegnati
-            </h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Promemoria operativo dei servizi su cui questo coordinatore ha
-              visibilita&apos;.
-            </p>
-          </div>
-
-          <div className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-700">
-            <span className="font-semibold text-zinc-950">
-              {assignedServices.length}
-            </span>{" "}
-            servizi collegati
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-4">
-          {assignedServices.length === 0 ? (
-            <article className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-              Nessun servizio assegnato al momento. Quando un admin
-              colleghera&apos; questo coordinatore a uno o piu&apos; servizi,
-              compariranno qui.
-            </article>
-          ) : (
-            assignedServices.map((service) => (
-              <article
-                key={service.id}
-                className="rounded-2xl border border-zinc-200 p-5"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-semibold text-zinc-950">
-                      {service.name}
-                    </h3>
-                    <p className="text-sm text-zinc-600">
-                      {service.weekday} - {service.schedule_label}
-                    </p>
-                    <p className="text-sm text-zinc-500">
-                      {service.address}, {service.city}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <span
-                      className={[
-                        "rounded-full border px-2.5 py-1 text-xs font-medium",
-                        service.is_active
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-zinc-200 bg-zinc-100 text-zinc-700",
-                      ].join(" ")}
-                    >
-                      {service.is_active ? "Attivo" : "Disattivato"}
-                    </span>
-                    {service.is_primary ? (
-                      <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">
-                        Principale
-                      </span>
-                    ) : null}
-                    {service.receives_new_request_notifications ? (
-                      <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                        Riceve notifiche
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </article>
-            ))
-          )}
-        </div>
-      </section>
+                  </article>
+                ))
+              )}
+            </div>
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

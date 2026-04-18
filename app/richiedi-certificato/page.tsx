@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FlashMessage } from "@/components/admin/flash-message";
 import { CertificateTypeHoursFields } from "@/components/public/certificate-type-hours-fields";
 import { RequestEntitySelectors } from "@/components/public/request-entity-selectors";
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { submitCertificateRequestAction } from "@/app/richiedi-certificato/actions";
 import { createClient } from "@/lib/supabase/server";
 
@@ -197,12 +198,11 @@ export default async function RequestCertificatePage({
                   </label>
                 </div>
 
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-                >
-                  Invia richiesta
-                </button>
+                <PendingSubmitButton
+                  className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
+                  idleLabel="Invia richiesta"
+                  pendingLabel="Invio richiesta in corso..."
+                />
               </form>
             )}
           </div>

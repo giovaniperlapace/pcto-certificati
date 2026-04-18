@@ -54,9 +54,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             Entra con Magic Link.
           </h1>
           <p className="text-base leading-7 text-zinc-600">
-            Puoi scegliere se accedere come coordinatore o come admin. L&apos;app
-            verifica il ruolo associato alla tua email prima di inviare il Magic
-            Link, cosi&apos; l&apos;esperienza resta coerente con i privilegi disponibili.
+            Puoi scegliere se accedere come coordinatore o come admin.
           </p>
         </div>
 

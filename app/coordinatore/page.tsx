@@ -170,40 +170,60 @@ export default async function CoordinatorDashboardPage({
   const totalApproved = statusCounts.approved;
   const totalRejected = statusCounts.rejected;
   const totalAttention = statusCounts.delivery_failed;
+  const overviewCards = [
+    {
+      label: "Da revisionare",
+      value: totalSubmitted,
+      meta: "Richieste ancora aperte",
+    },
+    {
+      label: "Approvate",
+      value: totalApproved,
+      meta: "Pronte per il ciclo finale",
+    },
+    {
+      label: "Rifiutate",
+      value: totalRejected,
+      meta: "Chiuse con motivazione",
+    },
+    {
+      label: "Da attenzionare",
+      value: totalAttention,
+      meta: "Invio o PDF da verificare",
+    },
+  ];
 
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Fase 5"
         title={`${coordinator.first_name} ${coordinator.last_name}`}
-        description="Questa area raccoglie solo le richieste dei servizi assegnati al coordinatore. Da qui puoi filtrare per stato, aprire il dettaglio e prendere una decisione senza uscire dal perimetro autorizzato."
       />
 
       <FlashMessage error={params.error ?? null} success={params.success ?? null} />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          {
-            label: "Da revisionare",
-            value: totalSubmitted,
-            meta: "Richieste ancora aperte",
-          },
-          {
-            label: "Approvate",
-            value: totalApproved,
-            meta: "Pronte per il ciclo finale",
-          },
-          {
-            label: "Rifiutate",
-            value: totalRejected,
-            meta: "Chiuse con motivazione",
-          },
-          {
-            label: "Da attenzionare",
-            value: totalAttention,
-            meta: "Invio o PDF da verificare",
-          },
-        ].map((card) => (
+      <section className="rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-sm md:hidden">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+          Riepilogo
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {overviewCards.map((card) => (
+            <article
+              key={card.label}
+              className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2"
+            >
+              <p className="text-[11px] font-medium leading-tight text-zinc-600">
+                {card.label}
+              </p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">
+                {card.value}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-4">
+        {overviewCards.map((card) => (
           <article
             key={card.label}
             className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm"

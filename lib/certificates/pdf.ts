@@ -245,7 +245,7 @@ export async function buildCertificatePdf(
       width: dimensions.width,
       height: dimensions.height,
     });
-    currentY = height - dimensions.height - 62;
+    currentY = height - dimensions.height - 86;
   } else {
     page.drawRectangle({
       x: marginX,
@@ -315,7 +315,15 @@ export async function buildCertificatePdf(
     currentY -= 12;
   }
 
-  const signatureTopY = 172;
+  const footerImage = await embedOptionalImage(pdfDoc, [
+    "footer.png",
+    "footer.jpg",
+    "footer.jpeg",
+  ]);
+  const footerImageDimensions = footerImage
+    ? footerImage.scaleToFit(contentWidth, 72)
+    : null;
+  const footerTopY = footerImageDimensions ? 22 + footerImageDimensions.height : 70;
   const signatureImageCandidates = [
     signatureSettings.signatureImageFileName,
     "signature.png",
@@ -325,87 +333,90 @@ export async function buildCertificatePdf(
   const signatureImage = await embedOptionalImage(pdfDoc, [
     ...signatureImageCandidates,
   ]);
+  const signatureDimensions = signatureImage?.scaleToFit(170, 78) ?? null;
+  const signatureX = marginX + 40;
+  const signatureInfoLines = [
+    signatureSettings.signerRole,
+    signatureSettings.signerPhone
+      ? `Tel. ${signatureSettings.signerPhone}`
+      : null,
+    signatureSettings.signerEmail
+      ? `Email: ${signatureSettings.signerEmail}`
+      : null,
+  ].filter((value): value is string => Boolean(value));
+
+  let releaseTextY = currentY - 6;
+  let signatureImageBottomY =
+    releaseTextY - 26 - (signatureDimensions?.height ?? 0);
+  let signatureLineY = signatureImageBottomY - 8;
+  let signerNameY = signatureLineY - 18;
+  let infoLineStartY = signerNameY - 20;
+  const lowestSignatureY =
+    signatureInfoLines.length > 0
+      ? infoLineStartY - (signatureInfoLines.length - 1) * 19
+      : signerNameY;
+  const minimumSignatureBottomY = footerTopY + 18;
+
+  if (lowestSignatureY < minimumSignatureBottomY) {
+    const verticalShift = minimumSignatureBottomY - lowestSignatureY;
+    releaseTextY += verticalShift;
+    signatureImageBottomY += verticalShift;
+    signatureLineY += verticalShift;
+    signerNameY += verticalShift;
+    infoLineStartY += verticalShift;
+  }
 
   page.drawText(
     `Rilasciato a ${signatureSettings.issuedInCity}, ${formatItalianDate(issuedAt)}`,
     {
-    x: marginX,
-    y: signatureTopY + 48,
-    size: 12,
-    font: bodyItalicFont,
-    color: rgb(0.28, 0.28, 0.28),
+      x: marginX,
+      y: releaseTextY,
+      size: 12,
+      font: bodyItalicFont,
+      color: rgb(0.28, 0.28, 0.28),
     },
   );
 
-  const signatureBaseY = signatureTopY - 12;
-  const signatureX = marginX + 40;
-
-  if (signatureImage) {
-    const dimensions = signatureImage.scaleToFit(170, 78);
+  if (signatureImage && signatureDimensions) {
     page.drawImage(signatureImage, {
       x: signatureX,
-      y: signatureBaseY + 8,
-      width: dimensions.width,
-      height: dimensions.height,
+      y: signatureImageBottomY,
+      width: signatureDimensions.width,
+      height: signatureDimensions.height,
     });
   }
 
   page.drawLine({
-    start: { x: signatureX, y: signatureBaseY + 4 },
-    end: { x: signatureX + 190, y: signatureBaseY + 4 },
+    start: { x: signatureX, y: signatureLineY },
+    end: { x: signatureX + 190, y: signatureLineY },
     thickness: 1,
     color: rgb(0.54, 0.54, 0.54),
   });
 
   page.drawText(signatureSettings.signerName, {
     x: signatureX,
-    y: signatureBaseY - 14,
+    y: signerNameY,
     size: 13,
     font: bodyBoldFont,
     color: rgb(0.2, 0.2, 0.2),
   });
 
-  page.drawText(signatureSettings.signerRole, {
-    x: signatureX,
-    y: signatureBaseY - 34,
-    size: 12,
-    font: bodyFont,
-    color: rgb(0.36, 0.36, 0.36),
+  signatureInfoLines.forEach((line, index) => {
+    page.drawText(line, {
+      x: signatureX,
+      y: infoLineStartY - index * 19,
+      size: 11,
+      font: bodyFont,
+      color: rgb(0.36, 0.36, 0.36),
+    });
   });
 
-  if (signatureSettings.signerPhone) {
-    page.drawText(`Tel. ${signatureSettings.signerPhone}`, {
-      x: signatureX,
-      y: signatureBaseY - 53,
-      size: 11,
-      font: bodyFont,
-      color: rgb(0.36, 0.36, 0.36),
-    });
-  }
-
-  if (signatureSettings.signerEmail) {
-    page.drawText(`Email: ${signatureSettings.signerEmail}`, {
-      x: signatureX,
-      y: signatureBaseY - 70,
-      size: 11,
-      font: bodyFont,
-      color: rgb(0.36, 0.36, 0.36),
-    });
-  }
-
-  const footerImage = await embedOptionalImage(pdfDoc, [
-    "footer.png",
-    "footer.jpg",
-    "footer.jpeg",
-  ]);
-
-  if (footerImage) {
-    const dimensions = footerImage.scaleToFit(contentWidth, 72);
+  if (footerImage && footerImageDimensions) {
     page.drawImage(footerImage, {
       x: marginX,
       y: 22,
-      width: dimensions.width,
-      height: dimensions.height,
+      width: footerImageDimensions.width,
+      height: footerImageDimensions.height,
     });
   } else {
     page.drawLine({

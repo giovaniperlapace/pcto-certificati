@@ -357,6 +357,23 @@ function getDeliveryRequestUpdate(params: {
   } as const;
 }
 
+function buildDeliveryFailureMessage(deliveryResults: DeliveryAttemptResult[]) {
+  const failedResults = deliveryResults.filter((result) => result.status === "failed");
+
+  if (failedResults.length === 0) {
+    return "La consegna finale non e' stata completata per tutti i destinatari previsti.";
+  }
+
+  const details = failedResults
+    .map((result) => {
+      const reason = result.errorMessage?.trim() || "errore non specificato";
+      return `${result.recipientType} (${result.recipientEmail}): ${reason}`;
+    })
+    .join(" | ");
+
+  return `Invio non completato. Destinatari falliti: ${details}`;
+}
+
 export async function generateApprovedRequestPdf(params: {
   requestId: string;
   triggeredByUserId: string;
@@ -529,7 +546,7 @@ export async function sendApprovedRequestDelivery(params: {
       errorMessage:
         finalStatus === "completed"
           ? null
-          : "La consegna finale non e' stata completata per tutti i destinatari previsti.",
+          : buildDeliveryFailureMessage(deliveryResults),
     } satisfies SendRequestDeliveryResult;
   } catch (error) {
     const errorMessage = toErrorMessage(

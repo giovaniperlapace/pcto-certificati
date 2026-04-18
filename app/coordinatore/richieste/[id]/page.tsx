@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { FlashMessage } from "@/components/admin/flash-message";
 import { PageHeader } from "@/components/admin/page-header";
 import { RequestStatusBadge } from "@/components/coordinator/request-status-badge";
+import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import {
   approveCoordinatorRequestAction,
   generateCoordinatorRequestPdfAction,
@@ -22,9 +23,7 @@ import { requireCoordinator } from "@/lib/auth/admin";
 import {
   buildCoordinatorRequestPath,
   canFinalizeRequestStatus,
-  formatActorType,
   formatDateTime,
-  formatRequestEventType,
   getRequestStatusMeta,
   isEditableRequestStatus,
 } from "@/lib/coordinator/requests";
@@ -67,30 +66,6 @@ export default async function CoordinatorRequestDetailPage({
 
   if (!request) {
     notFound();
-  }
-
-  const [{ data: events, error: eventsError }, { data: deliveries, error: deliveriesError }] =
-    await Promise.all([
-      supabase
-        .from("request_events")
-        .select("id, actor_type, event_type, created_at")
-        .eq("request_id", id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("email_deliveries")
-        .select(
-          "id, recipient_type, recipient_email, template_key, status, last_attempt_at, sent_at, error_message, created_at",
-        )
-        .eq("request_id", id)
-        .order("created_at", { ascending: false }),
-    ]);
-
-  if (eventsError) {
-    throw eventsError;
-  }
-
-  if (deliveriesError) {
-    throw deliveriesError;
   }
 
   const adminSupabase = createAdminClient();
@@ -662,12 +637,11 @@ export default async function CoordinatorRequestDetailPage({
                             </div>
                           </div>
                         </details>
-                        <button
-                          type="submit"
-                          className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-                        >
-                          Genera PDF
-                        </button>
+                        <PendingSubmitButton
+                          className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
+                          idleLabel="Genera PDF"
+                          pendingLabel="Generazione PDF in corso..."
+                        />
                       </form>
                     ) : null}
 
@@ -681,7 +655,10 @@ export default async function CoordinatorRequestDetailPage({
                     ) : null}
 
                     {canSendDelivery ? (
-                      <form action={finalizeCoordinatorRequestDeliveryAction}>
+                      <form
+                        action={finalizeCoordinatorRequestDeliveryAction}
+                        className="space-y-3"
+                      >
                         <input type="hidden" name="id" value={request.id} />
                         <input
                           type="hidden"
@@ -689,14 +666,19 @@ export default async function CoordinatorRequestDetailPage({
                           value={request.updated_at}
                         />
                         <input type="hidden" name="redirect_to" value={requestPath} />
-                        <button
-                          type="submit"
-                          className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
-                        >
-                          {request.status === "approved"
-                            ? "Invia certificato"
-                            : "Riprova invio certificato"}
-                        </button>
+                        <PendingSubmitButton
+                          className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
+                          idleLabel={
+                            request.status === "approved"
+                              ? "Invia certificato"
+                              : "Riprova invio certificato"
+                          }
+                          pendingLabel="Invio certificato in corso..."
+                        />
+                        <p className="text-sm text-zinc-500">
+                          Dopo il click il pulsante si disattiva finche&apos; il server non
+                          conclude l&apos;invio.
+                        </p>
                       </form>
                     ) : null}
                   </div>
@@ -737,83 +719,6 @@ export default async function CoordinatorRequestDetailPage({
         </div>
 
         <div className="space-y-8">
-          <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-              Timeline pratica
-            </h2>
-            <div className="mt-5 space-y-4">
-              {events && events.length > 0 ? (
-                events.map((event) => (
-                  <article
-                    key={event.id}
-                    className="rounded-2xl border border-zinc-200 p-4"
-                  >
-                    <p className="text-sm font-medium text-zinc-950">
-                      {formatRequestEventType(event.event_type)}
-                    </p>
-                    <p className="mt-1 text-sm text-zinc-600">
-                      {formatActorType(event.actor_type)} · {formatDateTime(event.created_at)}
-                    </p>
-                  </article>
-                ))
-              ) : (
-                <p className="text-sm text-zinc-600">Nessun evento registrato.</p>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-              Consegne registrate
-            </h2>
-            <div className="mt-5 space-y-4">
-              {deliveries && deliveries.length > 0 ? (
-                deliveries.map((delivery) => (
-                  <article
-                    key={delivery.id}
-                    className="rounded-2xl border border-zinc-200 p-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-zinc-950">
-                        {delivery.recipient_type} · {delivery.recipient_email}
-                      </p>
-                      <span
-                        className={[
-                          "rounded-full border px-2.5 py-1 text-xs font-medium",
-                          delivery.status === "sent"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : delivery.status === "failed"
-                              ? "border-rose-200 bg-rose-50 text-rose-700"
-                              : "border-zinc-200 bg-zinc-100 text-zinc-700",
-                        ].join(" ")}
-                      >
-                        {delivery.status}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-zinc-600">
-                      Template {delivery.template_key}
-                    </p>
-                    <p className="mt-1 text-sm text-zinc-500">
-                      Creata {formatDateTime(delivery.created_at)}
-                      {delivery.sent_at
-                        ? ` · Inviata ${formatDateTime(delivery.sent_at)}`
-                        : delivery.last_attempt_at
-                          ? ` · Ultimo tentativo ${formatDateTime(delivery.last_attempt_at)}`
-                          : ""}
-                    </p>
-                    {delivery.error_message ? (
-                      <p className="mt-2 text-sm text-rose-700">
-                        {delivery.error_message}
-                      </p>
-                    ) : null}
-                  </article>
-                ))
-              ) : (
-                <p className="text-sm text-zinc-600">Nessuna consegna registrata.</p>
-              )}
-            </div>
-          </section>
-
           <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
               Stato revisione

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FlashMessage } from "@/components/admin/flash-message";
+import { CertificateTypeHoursFields } from "@/components/public/certificate-type-hours-fields";
 import { RequestEntitySelectors } from "@/components/public/request-entity-selectors";
 import { submitCertificateRequestAction } from "@/app/richiedi-certificato/actions";
 import { createClient } from "@/lib/supabase/server";
@@ -154,42 +155,12 @@ export default async function RequestCertificatePage({
                     />
                   </label>
 
-                  <label className="block space-y-2">
-                    <span className="text-sm font-medium text-zinc-800">
-                      Tipo certificato
-                    </span>
-                    <select
-                      required
-                      name="certificate_type"
-                      defaultValue="pcto"
-                      className={fieldClassName}
-                    >
-                      <option value="pcto">PCTO</option>
-                      <option value="volontariato">Volontariato</option>
-                    </select>
-                  </label>
+                  <CertificateTypeHoursFields fieldClassName={fieldClassName} />
 
                   <RequestEntitySelectors
                     schoolOptions={schoolOptions}
                     serviceOptions={serviceOptions}
                   />
-
-                  <label className="block space-y-2">
-                    <span className="text-sm font-medium text-zinc-800">
-                      Ore di servizio svolte
-                    </span>
-                    <input
-                      type="number"
-                      min={1}
-                      step={1}
-                      name="hours_requested"
-                      inputMode="numeric"
-                      className={fieldClassName}
-                    />
-                    <p className="text-xs leading-5 text-zinc-500">
-                      Obbligatorio per PCTO, facoltativo per volontariato.
-                    </p>
-                  </label>
 
                   <label className="block space-y-2 md:col-span-2">
                     <span className="text-sm font-medium text-zinc-800">

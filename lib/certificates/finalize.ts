@@ -19,6 +19,17 @@ type DeliveryAttemptResult = {
   status: "sent" | "failed";
 };
 
+type PendingRecipient = {
+  email: string;
+  recipientType: CertificateRecipientType;
+};
+
+type PendingRecipientIssue = {
+  errorMessage: string;
+  recipientEmail: string | null;
+  recipientType: CertificateRecipientType;
+};
+
 export type GenerateRequestPdfResult = {
   errorMessage: string | null;
   pdfGeneratedAt: string | null;
@@ -43,6 +54,14 @@ function toErrorMessage(error: unknown, fallbackMessage: string) {
 
 function canProcessApprovedRequestStatus(status: string) {
   return status === "approved" || status === "delivery_failed";
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 async function ensureCertificateBucket() {
@@ -186,45 +205,68 @@ async function loadRequestForDelivery(requestId: string) {
 }
 
 function buildPendingRecipients(request: CertificateDeliveryRequest) {
-  const recipients: Array<{
-    email: string;
-    recipientType: CertificateRecipientType;
-  }> = [];
+  const recipients: PendingRecipient[] = [];
+  const issues: PendingRecipientIssue[] = [];
+
+  const pushRecipient = (
+    recipientType: CertificateRecipientType,
+    emailValue: string | null,
+    missingEmailMessage: string,
+  ) => {
+    if (!emailValue) {
+      issues.push({
+        recipientType,
+        recipientEmail: null,
+        errorMessage: missingEmailMessage,
+      });
+      return;
+    }
+
+    const normalizedEmail = normalizeEmail(emailValue);
+
+    if (!isValidEmail(normalizedEmail)) {
+      issues.push({
+        recipientType,
+        recipientEmail: normalizedEmail,
+        errorMessage: "Indirizzo email non valido.",
+      });
+      return;
+    }
+
+    recipients.push({
+      recipientType,
+      email: normalizedEmail,
+    });
+  };
 
   if (!request.student_emailed_at) {
-    recipients.push({
-      recipientType: "student",
-      email: request.student_email,
-    });
+    pushRecipient(
+      "student",
+      request.student_email,
+      "La richiesta non ha un'email studente valida per l'invio.",
+    );
   }
 
   if (request.send_to_school && !request.school_emailed_at) {
-    if (!request.schoolEmail) {
-      throw new Error(
-        "La richiesta prevede l'invio alla scuola ma non esiste un'email scuola disponibile.",
-      );
-    }
-
-    recipients.push({
-      recipientType: "school",
-      email: request.schoolEmail,
-    });
+    pushRecipient(
+      "school",
+      request.schoolEmail,
+      "La richiesta prevede l'invio alla scuola ma non esiste un'email scuola disponibile.",
+    );
   }
 
   if (request.send_to_teacher && !request.teacher_emailed_at) {
-    if (!request.teacher_email_snapshot) {
-      throw new Error(
-        "La richiesta prevede l'invio al docente ma non esiste un'email docente disponibile.",
-      );
-    }
-
-    recipients.push({
-      recipientType: "teacher",
-      email: request.teacher_email_snapshot,
-    });
+    pushRecipient(
+      "teacher",
+      request.teacher_email_snapshot,
+      "La richiesta prevede l'invio al docente ma non esiste un'email docente disponibile.",
+    );
   }
 
-  return recipients;
+  return {
+    recipients,
+    issues,
+  } as const;
 }
 
 async function sendEmailWithDeliveryLog(params: {
@@ -308,6 +350,44 @@ async function sendEmailWithDeliveryLog(params: {
       errorMessage,
     } satisfies DeliveryAttemptResult;
   }
+}
+
+async function logDeliveryValidationFailure(params: {
+  errorMessage: string;
+  recipientEmail: string | null;
+  recipientType: CertificateRecipientType;
+  requestId: string;
+}) {
+  const adminSupabase = createAdminClient();
+  const lastAttemptAt = new Date().toISOString();
+  const recipientEmail = params.recipientEmail ?? "(non disponibile)";
+
+  try {
+    const { error } = await adminSupabase.from("email_deliveries").insert({
+      request_id: params.requestId,
+      recipient_type: params.recipientType,
+      recipient_email: recipientEmail,
+      template_key: `certificate_${params.recipientType}`,
+      status: "failed",
+      attempt_count: 0,
+      error_message: params.errorMessage,
+      last_attempt_at: lastAttemptAt,
+    });
+
+    if (error) {
+      console.error("Unable to insert failed validation email delivery row", error);
+    }
+  } catch (error) {
+    console.error("Unable to insert failed validation email delivery row", error);
+  }
+
+  return {
+    recipientType: params.recipientType,
+    recipientEmail,
+    sentAt: null,
+    status: "failed",
+    errorMessage: params.errorMessage,
+  } satisfies DeliveryAttemptResult;
 }
 
 function getDeliveryRequestUpdate(params: {
@@ -478,7 +558,10 @@ export async function sendApprovedRequestDelivery(params: {
   try {
     const pendingRecipients = buildPendingRecipients(request);
 
-    if (pendingRecipients.length === 0) {
+    if (
+      pendingRecipients.recipients.length === 0 &&
+      pendingRecipients.issues.length === 0
+    ) {
       const { error: updateError } = await adminSupabase
         .from("certificate_requests")
         .update({
@@ -498,18 +581,32 @@ export async function sendApprovedRequestDelivery(params: {
       } satisfies SendRequestDeliveryResult;
     }
 
-    const pdfBytes = await downloadCertificatePdf(request.pdf_storage_path);
     const deliveryResults: DeliveryAttemptResult[] = [];
 
-    for (const recipient of pendingRecipients) {
+    for (const issue of pendingRecipients.issues) {
       deliveryResults.push(
-        await sendEmailWithDeliveryLog({
-          request,
-          pdfBytes,
-          recipientEmail: recipient.email,
-          recipientType: recipient.recipientType,
+        await logDeliveryValidationFailure({
+          requestId: request.id,
+          recipientType: issue.recipientType,
+          recipientEmail: issue.recipientEmail,
+          errorMessage: issue.errorMessage,
         }),
       );
+    }
+
+    if (pendingRecipients.recipients.length > 0) {
+      const pdfBytes = await downloadCertificatePdf(request.pdf_storage_path);
+
+      for (const recipient of pendingRecipients.recipients) {
+        deliveryResults.push(
+          await sendEmailWithDeliveryLog({
+            request,
+            pdfBytes,
+            recipientEmail: recipient.email,
+            recipientType: recipient.recipientType,
+          }),
+        );
+      }
     }
 
     const { finalStatus, update } = getDeliveryRequestUpdate({

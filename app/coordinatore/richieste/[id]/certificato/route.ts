@@ -40,6 +40,12 @@ type RouteContext = {
   }>;
 };
 
+const ALLOWED_DOWNLOAD_STATUSES = [
+  "approved",
+  "completed",
+  "delivery_failed",
+] as const;
+
 export async function GET(_request: Request, context: RouteContext) {
   const { id } = await context.params;
   const { coordinator, supabase, user } = await assertCoordinator();
@@ -51,7 +57,7 @@ export async function GET(_request: Request, context: RouteContext) {
   const { data: request, error: requestError } = await supabase
     .from("certificate_requests")
     .select(
-      "id, pdf_storage_path, certificate_type, certificate_heading_text, certificate_body_text, student_first_name, student_last_name, student_email, class_label, school_id, school_name_snapshot, service_name_snapshot, service_schedule_snapshot, service_address_snapshot, school_year_id, send_to_school, send_to_teacher, teacher_name_snapshot, teacher_email_snapshot, approved_at, hours_requested, hours_approved, pdf_generated_at, student_emailed_at, school_emailed_at, teacher_emailed_at",
+      "id, status, pdf_storage_path, certificate_type, certificate_heading_text, certificate_body_text, student_first_name, student_last_name, student_email, class_label, school_id, school_name_snapshot, service_name_snapshot, service_schedule_snapshot, service_address_snapshot, school_year_id, send_to_school, send_to_teacher, teacher_name_snapshot, teacher_email_snapshot, approved_at, hours_requested, hours_approved, pdf_generated_at, student_emailed_at, school_emailed_at, teacher_emailed_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -64,6 +70,20 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json(
       { error: "Il PDF di questa richiesta non e' ancora disponibile." },
       { status: 404 },
+    );
+  }
+
+  if (
+    !ALLOWED_DOWNLOAD_STATUSES.includes(
+      request.status as (typeof ALLOWED_DOWNLOAD_STATUSES)[number],
+    )
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Il PDF puo' essere scaricato solo per richieste approvate o in consegna.",
+      },
+      { status: 409 },
     );
   }
 
@@ -88,6 +108,10 @@ export async function GET(_request: Request, context: RouteContext) {
     throw schoolYearError;
   }
 
+  if (!schoolYear?.label) {
+    throw new Error("Anno scolastico della richiesta non disponibile.");
+  }
+
   if (schoolError) {
     throw schoolError;
   }
@@ -95,7 +119,7 @@ export async function GET(_request: Request, context: RouteContext) {
   const deliveryRequest = {
     ...request,
     schoolEmail: school?.school_email ?? null,
-    schoolYearLabel: schoolYear?.label ?? "",
+    schoolYearLabel: schoolYear.label,
   } satisfies CertificateDeliveryRequest;
   const { data: pdfFile, error: downloadError } = await adminSupabase.storage
     .from(CERTIFICATE_STORAGE_BUCKET)

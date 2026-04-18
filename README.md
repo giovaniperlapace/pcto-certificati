@@ -21,6 +21,6 @@ Apri [http://localhost:3000](http://localhost:3000).
 
 ## Documento guida
 
-Il piano operativo dell'MVP e' in:
+Il piano operativo storico dell'MVP e' in:
 
-- `docs/piano-implementazione-mvp-certificati.md`
+- `docs/archive/piano-implementazione-mvp-certificati-v1.md`

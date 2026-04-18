@@ -19,6 +19,14 @@ MVP web app per:
 
 ## Stato attuale
 
+Piano di lavoro MVP completato.
+
+Stato prodotto:
+
+- versione `1.0` rilasciata
+- flusso end-to-end pubblico + coordinatore + admin disponibile
+- da ora in avanti focus su test sul campo e manutenzione correttiva
+
 ### Fase 1 completata
 
 Bootstrap app completato.
@@ -154,11 +162,17 @@ Gia' presente:
 - possibilita' opzionale di personalizzare intestazione e corpo del certificato
   per la singola richiesta senza interrompere il flusso standard
 
-Da rifinire / validare meglio nella fase successiva:
+### Fase 7 completata
 
-- QA manuale completo con invio reale controllato
-- rifinitura impaginazione e testi istituzionali finali
-- verifica robustezza deliverability Gmail in produzione
+Hardening e QA completati.
+
+Gia' presente:
+
+- seed locale realistico per QA ripetibile
+- controlli automatici di hardening su coerenza dati e sicurezza base
+- hardening del flusso invio finale su edge case destinatari mancanti/non validi
+- hardening del download PDF con controlli stato richiesta
+- lint/build/checks QA eseguiti con esito positivo
 
 ## Stato dati reale su Supabase
 
@@ -468,7 +482,7 @@ Non committare mai segreti nuovi oltre quelli gia' presenti localmente.
 
 ## Documenti da leggere prima di continuare
 
-- `piano-implementazione-mvp-certificati.md`
+- `docs/archive/piano-implementazione-mvp-certificati-v1.md` (storico)
 - `primo_prompt.txt`
 - questo file
 
@@ -476,15 +490,15 @@ Non committare mai segreti nuovi oltre quelli gia' presenti localmente.
 
 Ordine sensato:
 
-1. eseguire un ciclo di QA manuale completo da submit pubblico fino alla consegna finale
-2. verificare su casi reali il comportamento di email a studente, scuola e docente
-3. rifinire i testi finali dei certificati `pcto` e `volontariato` se necessario
-4. valutare eventuali limiti pratici di Gmail SMTP per il carico reale MVP
-5. passare alla Fase 7 di hardening e QA
+1. testare sul campo la versione `1.0` su casi reali controllati
+2. monitorare consegne email a studente, scuola e docente
+3. raccogliere feedback operativi da coordinatori e admin
+4. applicare eventuali correzioni bug o aggiornamenti mirati
+5. pianificare il primo ciclo di manutenzione post-rilascio
 
-### Fase 6 stato attuale
+### Stato post-rilascio v1.0
 
-La Fase 6 ora copre gia':
+La versione `1.0` copre gia':
 
 - approvazione separata da generazione PDF e invio
 - generazione PDF server-side
@@ -518,7 +532,7 @@ Note operative:
   - spazio sufficiente tra `Rilasciato a ...` e firma per evitare sovrapposizioni
   - blocco firma sopra il footer senza coprire il testo
 
-Prima di considerare chiusa davvero la Fase 6 conviene verificare:
+Nei prossimi giorni conviene monitorare:
 
 - testo finale dei certificati `pcto` e `volontariato`
 - resa PDF su piu' richieste reali
@@ -540,6 +554,7 @@ Punti tecnici gia' adottati in Fase 6:
 - non introdurre dipendenze inutili
 - tenere la logica sensibile lato server
 - riusare i tipi generati in `lib/supabase/database.types.ts`
+- non eseguire `supabase db reset` in ambienti con dati reali da preservare
 - quando possibile, mantenere la UI admin nel pattern tabelle/modal gia' introdotto invece di tornare a form sparsi nella pagina
 - per i pulsanti che avviano azioni non immediate lato server usare il pattern pending condiviso in `components/ui/pending-submit-button.tsx`, con bottone disabilitato e feedback visivo durante l'attesa
 - dopo modifiche significative eseguire sempre:
@@ -556,11 +571,11 @@ Ordine consigliato:
 
 1. clonare repo
 2. leggere questo file
-3. leggere `piano-implementazione-mvp-certificati.md`
+3. leggere `docs/archive/piano-implementazione-mvp-certificati-v1.md` (storico)
 4. verificare `.env.local`
 5. eseguire `npm install`
 6. eseguire `npm run lint`
 7. eseguire `npm run build`
 8. verificare accesso Supabase CLI e `gh auth status`
 9. controllare lo stato dati reale su Supabase
-10. ripartire dalla Fase 7 oppure rifinire/validare meglio la Fase 6, in base a cosa manca
+10. ripartire dal monitoraggio post-rilascio e dalle eventuali correzioni bug

@@ -185,9 +185,17 @@ export default async function RequestCertificatePage({
                     className="mt-1 h-4 w-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
                   />
                   <span>
-                    Confermo di aver letto l&apos;informativa privacy e autorizzo il
-                    trattamento dei dati strettamente necessari alla gestione della
-                    richiesta di certificato.
+                    Confermo di aver letto l&apos;
+                    <Link
+                      href="/informativa-privacy"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-zinc-950 underline underline-offset-2 transition hover:text-zinc-700"
+                    >
+                      informativa privacy
+                    </Link>{" "}
+                    e autorizzo il trattamento dei dati strettamente necessari
+                    alla gestione della richiesta di certificato.
                   </span>
                 </label>
 

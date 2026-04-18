@@ -245,7 +245,7 @@ export async function buildCertificatePdf(
       width: dimensions.width,
       height: dimensions.height,
     });
-    currentY = height - dimensions.height - 86;
+    currentY = height - dimensions.height - 102;
   } else {
     page.drawRectangle({
       x: marginX,
@@ -345,9 +345,9 @@ export async function buildCertificatePdf(
       : null,
   ].filter((value): value is string => Boolean(value));
 
-  let releaseTextY = currentY - 6;
+  let releaseTextY = currentY + 10;
   let signatureImageBottomY =
-    releaseTextY - 26 - (signatureDimensions?.height ?? 0);
+    releaseTextY - 44 - (signatureDimensions?.height ?? 0);
   let signatureLineY = signatureImageBottomY - 8;
   let signerNameY = signatureLineY - 18;
   let infoLineStartY = signerNameY - 20;

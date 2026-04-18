@@ -512,6 +512,11 @@ Note operative:
   - nome file immagine firma da `public/certificate-assets/`
 - il PDF finale usa gli asset grafici attualmente presenti in
   `public/certificate-assets/`
+- il layout PDF va preservato con questi vincoli grafici:
+  - aria visibile tra header e titolo
+  - frase `Rilasciato a ...` subito sotto il testo finale
+  - spazio sufficiente tra `Rilasciato a ...` e firma per evitare sovrapposizioni
+  - blocco firma sopra il footer senza coprire il testo
 
 Prima di considerare chiusa davvero la Fase 6 conviene verificare:
 

@@ -94,7 +94,7 @@ export default async function AdminDashboardPage({
       title: "Richieste",
       value: submittedRequests,
       meta: "Totale record richieste",
-      href: "/admin",
+      href: "/admin/richieste",
     },
   ];
 

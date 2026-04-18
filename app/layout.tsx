@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AppFooter } from "@/components/app-footer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,9 +16,10 @@ export default function RootLayout({
     <html lang="it">
       <body
         suppressHydrationWarning
-        className="min-h-screen bg-white text-zinc-950 antialiased"
+        className="min-h-screen bg-white pb-10 text-zinc-950 antialiased"
       >
         {children}
+        <AppFooter />
       </body>
     </html>
   );

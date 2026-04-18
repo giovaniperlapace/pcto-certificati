@@ -5,6 +5,7 @@ import { signOutAction } from "@/app/admin/actions";
 
 const navigation = [
   { href: "/admin", label: "Dashboard" },
+  { href: "/admin/richieste", label: "Richieste" },
   { href: "/admin/scuole", label: "Scuole" },
   { href: "/admin/servizi", label: "Servizi" },
   { href: "/admin/coordinatori", label: "Coordinatori" },

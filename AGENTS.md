@@ -26,6 +26,8 @@ Stato prodotto:
 - versione `1.0` rilasciata
 - flusso end-to-end pubblico + coordinatore + admin disponibile
 - da ora in avanti focus su test sul campo e manutenzione correttiva
+- footer globale presente su tutte le pagine con versione app, data ultima
+  modifica e email `info@giovaniperlapace.it`
 
 ### Fase 1 completata
 
@@ -72,6 +74,9 @@ Gia' presente:
 - CRUD servizi
 - CRUD coordinatori
 - visualizzazione anagrafiche admin in tabelle piu' ricche, con filtri, ordinamento e modal di inserimento/modifica
+- vista admin richieste in `app/admin/richieste/` con tabella ricercabile,
+  ordinabile e ordinata di default dalla richiesta piu' recente
+- dettaglio admin richiesta in sola lettura in `app/admin/richieste/[id]/`
 - pulsante rosso di eliminazione con conferma nelle modal di modifica di scuole, servizi e coordinatori
 - gestione relazione `service_coordinators`
 - possibilita' di promuovere un coordinatore ad admin dalla UI coordinatori
@@ -379,6 +384,8 @@ Caso gia' incontrato e risolto:
 - `app/admin/servizi/page.tsx`
 - `app/admin/servizi/[serviceId]/page.tsx`
 - `app/admin/coordinatori/page.tsx`
+- `app/admin/richieste/page.tsx`
+- `app/admin/richieste/[id]/page.tsx`
 - `app/richiedi-certificato/page.tsx`
 - `app/richiedi-certificato/actions.ts`
 - `app/richiedi-certificato/conferma/page.tsx`
@@ -395,9 +402,12 @@ Caso gia' incontrato e risolto:
 - `components/admin/coordinator-search-select.tsx`
 - `components/admin/flash-message.tsx`
 - `components/admin/page-header.tsx`
+- `components/admin/requests-admin-table.tsx`
+- `components/app-footer.tsx`
 - `components/public/filterable-select.tsx`
 - `components/public/request-entity-selectors.tsx`
 - `components/coordinator/request-status-badge.tsx`
+- `lib/app-info.ts`
 - `lib/auth/admin.ts`
 - `lib/certificates/content.ts`
 - `lib/certificates/signature.ts`
@@ -510,6 +520,10 @@ La versione `1.0` copre gia':
 - gestione admin di testi firma e immagine firma del certificato
 - personalizzazione opzionale del testo del certificato per singola richiesta
   con gli stessi placeholder del template admin
+- consultazione admin di tutte le richieste ricevute in tabella ricercabile e
+  ordinabile, con dettaglio in sola lettura
+- footer globale permanente con versione app, data ultima modifica e contatto
+  `info@giovaniperlapace.it`
 
 Note operative:
 
@@ -557,6 +571,8 @@ Punti tecnici gia' adottati in Fase 6:
 - non eseguire `supabase db reset` in ambienti con dati reali da preservare
 - quando possibile, mantenere la UI admin nel pattern tabelle/modal gia' introdotto invece di tornare a form sparsi nella pagina
 - per i pulsanti che avviano azioni non immediate lato server usare il pattern pending condiviso in `components/ui/pending-submit-button.tsx`, con bottone disabilitato e feedback visivo durante l'attesa
+- quando cambia la versione o la data pubblica di ultima modifica, aggiornare
+  `lib/app-info.ts`, usato dal footer globale
 - dopo modifiche significative eseguire sempre:
   - `npm run lint`
   - `npm run build`

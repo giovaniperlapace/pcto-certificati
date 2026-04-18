@@ -96,6 +96,9 @@ Gia' presente:
   - rate limit base sui submit ravvicinati
 - evento iniziale in `request_events`
 - registrazione notifiche in `email_deliveries` per coordinatori o admin
+- invio email notifica nuova richiesta:
+  - ai coordinatori del servizio quando il servizio e' selezionato da elenco
+  - agli admin quando il servizio e' inserito manualmente (non in elenco)
 - pagina di conferma submit in `app/richiedi-certificato/conferma/`
 
 ### Fase 5 completata in una prima versione usabile
@@ -145,6 +148,7 @@ Gia' presente:
 - testi base certificato derivati dai template legacy RMarkdown
 - gestione admin dei template base `pcto` e `volontariato` dalla dashboard
   con supporto ai placeholder dinamici
+- gestione admin della firma certificato (testi + nome file immagine)
 - possibilita' per il coordinatore di modificare lo stesso testo con gli stessi
   placeholder, ma solo per la singola richiesta
 - possibilita' opzionale di personalizzare intestazione e corpo del certificato
@@ -308,6 +312,7 @@ Caso gia' incontrato e risolto:
 - `coordinators`
 - `service_coordinators`
 - `user_roles`
+- `certificate_signature_settings`
 - `certificate_templates`
 - `certificate_requests`
 - `request_events`
@@ -325,6 +330,7 @@ Caso gia' incontrato e risolto:
 - `supabase/migrations/20260416094000_allow_manual-school-and-service-submissions.sql`
 - `supabase/migrations/20260416234500_add_certificate_text_overrides.sql`
 - `supabase/migrations/20260417173000_add_certificate_templates.sql`
+- `supabase/migrations/20260418090000_add_certificate_signature_settings.sql`
 - `supabase/config.toml`
 - `lib/supabase/database.types.ts`
 
@@ -380,6 +386,7 @@ Caso gia' incontrato e risolto:
 - `components/coordinator/request-status-badge.tsx`
 - `lib/auth/admin.ts`
 - `lib/certificates/content.ts`
+- `lib/certificates/signature.ts`
 - `lib/certificates/templates.ts`
 - `lib/certificates/email.ts`
 - `lib/certificates/finalize.ts`
@@ -486,6 +493,7 @@ La Fase 6 ora copre gia':
 - invio email finale a studente, scuola e docente
 - aggiornamento stato finale richiesta e log invii
 - gestione admin dei template base certificato con placeholder
+- gestione admin di testi firma e immagine firma del certificato
 - personalizzazione opzionale del testo del certificato per singola richiesta
   con gli stessi placeholder del template admin
 
@@ -497,6 +505,11 @@ Note operative:
 - la personalizzazione del testo e' opzionale e vale solo per quella richiesta
 - l'admin modifica i template globali che si applicano ai certificati generati
   da quel momento in poi
+- l'admin puo' anche modificare da dashboard:
+  - citta' di rilascio
+  - nome e ruolo firmatario
+  - telefono ed email firmatario
+  - nome file immagine firma da `public/certificate-assets/`
 - il PDF finale usa gli asset grafici attualmente presenti in
   `public/certificate-assets/`
 

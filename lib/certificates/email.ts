@@ -15,6 +15,14 @@ type CertificateEmailTemplate = {
   text: string;
 };
 
+type NewRequestRecipientType = "coordinator" | "admin";
+
+type NewRequestNotificationTemplate = {
+  html: string;
+  subject: string;
+  text: string;
+};
+
 let cachedTransporter: ReturnType<typeof nodemailer.createTransport> | null = null;
 
 function escapeHtml(value: string) {
@@ -112,6 +120,91 @@ function buildTemplate(
   } satisfies CertificateEmailTemplate;
 }
 
+function formatNewRequestCertificateTypeLabel(certificateType: "pcto" | "volontariato") {
+  return certificateType === "pcto" ? "PCTO" : "volontariato";
+}
+
+function buildNewRequestNotificationTemplate(params: {
+  certificateType: "pcto" | "volontariato";
+  classLabel: string;
+  coordinatorDashboardUrl: string;
+  recipientType: NewRequestRecipientType;
+  requestId: string;
+  schoolNameSnapshot: string;
+  serviceNameSnapshot: string;
+  studentFirstName: string;
+  studentLastName: string;
+}) {
+  const certificateTypeLabel = formatNewRequestCertificateTypeLabel(
+    params.certificateType,
+  );
+  const subject =
+    params.recipientType === "coordinator"
+      ? `Nuova richiesta certificato ${certificateTypeLabel} - ${params.serviceNameSnapshot}`
+      : `Nuova richiesta certificato ${certificateTypeLabel} da assegnare`;
+
+  const intro =
+    params.recipientType === "coordinator"
+      ? "E' stata inviata una nuova richiesta per il servizio di cui sei responsabile."
+      : "E' stata inviata una nuova richiesta con servizio non presente in elenco.";
+  const actionLine =
+    params.recipientType === "coordinator"
+      ? "Accedi all'area coordinatore per revisionare e gestire la richiesta."
+      : "Accedi all'area admin/coordinatore per prendere in carico la richiesta.";
+
+  const escapedIntro = escapeHtml(intro);
+  const escapedActionLine = escapeHtml(actionLine);
+  const escapedStudent = escapeHtml(
+    `${params.studentFirstName} ${params.studentLastName}`,
+  );
+  const escapedClassLabel = escapeHtml(params.classLabel);
+  const escapedSchoolName = escapeHtml(params.schoolNameSnapshot);
+  const escapedServiceName = escapeHtml(params.serviceNameSnapshot);
+  const escapedCertificateTypeLabel = escapeHtml(certificateTypeLabel);
+  const escapedDashboardUrl = escapeHtml(params.coordinatorDashboardUrl);
+  const escapedRequestId = escapeHtml(params.requestId);
+
+  return {
+    subject,
+    text: [
+      "Buongiorno,",
+      "",
+      intro,
+      actionLine,
+      "",
+      `Studente: ${params.studentFirstName} ${params.studentLastName}`,
+      `Classe: ${params.classLabel}`,
+      `Scuola: ${params.schoolNameSnapshot}`,
+      `Servizio: ${params.serviceNameSnapshot}`,
+      `Tipo certificato: ${certificateTypeLabel}`,
+      `ID richiesta: ${params.requestId}`,
+      "",
+      `Area coordinatore: ${params.coordinatorDashboardUrl}`,
+      "",
+      "Giovani per la Pace",
+    ].join("\n"),
+    html: `
+      <div style="font-family: Georgia, 'Times New Roman', serif; color: #27272a; line-height: 1.6;">
+        <p>Buongiorno,</p>
+        <p>${escapedIntro}</p>
+        <p>${escapedActionLine}</p>
+        <p>
+          <strong>Studente:</strong> ${escapedStudent}<br />
+          <strong>Classe:</strong> ${escapedClassLabel}<br />
+          <strong>Scuola:</strong> ${escapedSchoolName}<br />
+          <strong>Servizio:</strong> ${escapedServiceName}<br />
+          <strong>Tipo certificato:</strong> ${escapedCertificateTypeLabel}<br />
+          <strong>ID richiesta:</strong> ${escapedRequestId}
+        </p>
+        <p>
+          <a href="${escapedDashboardUrl}">Apri area coordinatore</a>
+        </p>
+        <p style="margin-top: 24px;">Giovani per la Pace</p>
+      </div>
+    `.trim(),
+  } satisfies NewRequestNotificationTemplate;
+}
+
 export async function sendCertificateEmail(params: {
   pdfBytes: Uint8Array;
   recipientEmail: string;
@@ -136,6 +229,36 @@ export async function sendCertificateEmail(params: {
         contentType: "application/pdf",
       },
     ],
+  });
+
+  return {
+    messageId: info.messageId ?? null,
+  };
+}
+
+export async function sendNewRequestNotificationEmail(params: {
+  certificateType: "pcto" | "volontariato";
+  classLabel: string;
+  coordinatorDashboardUrl: string;
+  recipientEmail: string;
+  recipientType: NewRequestRecipientType;
+  requestId: string;
+  schoolNameSnapshot: string;
+  serviceNameSnapshot: string;
+  studentFirstName: string;
+  studentLastName: string;
+}) {
+  const transporter = getTransporter();
+  const gmail = getGmailEnv();
+  const template = buildNewRequestNotificationTemplate(params);
+
+  const info = await transporter.sendMail({
+    from: `"Giovani per la Pace" <${gmail.user}>`,
+    replyTo: gmail.user,
+    to: params.recipientEmail,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
   });
 
   return {

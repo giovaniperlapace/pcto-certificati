@@ -3,10 +3,12 @@
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { sendNewRequestNotificationEmail } from "@/lib/certificates/email";
 import {
   createAdminClient,
   listAuthUsersByIds,
 } from "@/lib/supabase/admin";
+import { getBaseUrl } from "@/lib/utils/request-url";
 import {
   readOptionalString,
   readRequiredString,
@@ -44,6 +46,14 @@ type ManualServiceInput = {
   managerName: string;
 };
 
+type NewRequestDeliveryResult = {
+  email: string;
+  errorMessage: string | null;
+  fullName: string;
+  recipientId: string;
+  status: "sent" | "failed";
+};
+
 function redirectToForm(type: "error" | "success", message: string) {
   redirect(`${REQUEST_FORM_PATH}?${type}=${encodeURIComponent(message)}`);
 }
@@ -64,6 +74,14 @@ function isNextRedirectError(error: unknown): boolean {
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+function toErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
 }
 
 function validateEmail(email: string) {
@@ -681,19 +699,101 @@ export async function submitCertificateRequestAction(formData: FormData) {
         throw eventError;
       }
 
-      const { error: deliveriesError } = await supabase
-        .from("email_deliveries")
-        .insert(
-          fallbackRecipients.map((coordinator) => ({
-            request_id: insertedRequest.id,
-            recipient_type: deliveryRecipientType,
-            recipient_email: coordinator.email,
-            template_key: notificationTemplateKey,
-          })),
-        );
+      const baseUrl = await getBaseUrl().catch(
+        () => "https://pcto-certificati.vercel.app",
+      );
+      const coordinatorDashboardUrl = `${baseUrl}/coordinatore`;
+      const deliveryResults: NewRequestDeliveryResult[] = [];
 
-      if (deliveriesError) {
-        throw deliveriesError;
+      for (const recipient of fallbackRecipients) {
+        const { data: insertedDelivery, error: insertDeliveryError } =
+          await supabase
+            .from("email_deliveries")
+            .insert({
+              request_id: insertedRequest.id,
+              recipient_type: deliveryRecipientType,
+              recipient_email: recipient.email,
+              template_key: notificationTemplateKey,
+              status: "pending",
+            })
+            .select("id")
+            .single();
+
+        if (insertDeliveryError) {
+          throw insertDeliveryError;
+        }
+
+        const lastAttemptAt = new Date().toISOString();
+
+        try {
+          const info = await sendNewRequestNotificationEmail({
+            certificateType,
+            classLabel,
+            coordinatorDashboardUrl,
+            recipientEmail: recipient.email,
+            recipientType: deliveryRecipientType,
+            requestId: insertedRequest.id,
+            schoolNameSnapshot: school?.full_name ?? manualSchool?.name ?? "",
+            serviceNameSnapshot: service?.name ?? manualService?.serviceType ?? "",
+            studentFirstName,
+            studentLastName,
+          });
+
+          const sentAt = new Date().toISOString();
+          const { error: updateSentError } = await supabase
+            .from("email_deliveries")
+            .update({
+              attempt_count: 1,
+              error_message: null,
+              last_attempt_at: lastAttemptAt,
+              provider_message_id: info.messageId,
+              sent_at: sentAt,
+              status: "sent",
+            })
+            .eq("id", insertedDelivery.id);
+
+          if (updateSentError) {
+            console.error("Unable to update sent new-request email row", updateSentError);
+          }
+
+          deliveryResults.push({
+            email: recipient.email,
+            errorMessage: null,
+            fullName: `${recipient.first_name} ${recipient.last_name}`,
+            recipientId: recipient.id,
+            status: "sent",
+          });
+        } catch (sendError) {
+          const errorMessage = toErrorMessage(
+            sendError,
+            "Invio notifica nuova richiesta non riuscito.",
+          );
+
+          const { error: updateFailedError } = await supabase
+            .from("email_deliveries")
+            .update({
+              attempt_count: 1,
+              error_message: errorMessage,
+              last_attempt_at: lastAttemptAt,
+              status: "failed",
+            })
+            .eq("id", insertedDelivery.id);
+
+          if (updateFailedError) {
+            console.error(
+              "Unable to update failed new-request email row",
+              updateFailedError,
+            );
+          }
+
+          deliveryResults.push({
+            email: recipient.email,
+            errorMessage,
+            fullName: `${recipient.first_name} ${recipient.last_name}`,
+            recipientId: recipient.id,
+            status: "failed",
+          });
+        }
       }
 
       const { error: queuedEventError } = await supabase
@@ -703,11 +803,18 @@ export async function submitCertificateRequestAction(formData: FormData) {
           actor_type: "system",
           event_type: notificationEventType,
           payload: {
-            recipient_count: fallbackRecipients.length,
-            recipients: fallbackRecipients.map((coordinator) => ({
-              coordinator_id: coordinator.id,
-              email: coordinator.email,
-              full_name: `${coordinator.first_name} ${coordinator.last_name}`,
+            recipient_count: deliveryResults.length,
+            sent_count: deliveryResults.filter((result) => result.status === "sent")
+              .length,
+            failed_count: deliveryResults.filter(
+              (result) => result.status === "failed",
+            ).length,
+            recipients: deliveryResults.map((result) => ({
+              coordinator_id: result.recipientId,
+              email: result.email,
+              full_name: result.fullName,
+              status: result.status,
+              error_message: result.errorMessage,
             })),
             queued_at: now,
           },

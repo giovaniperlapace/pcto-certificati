@@ -13,6 +13,7 @@ import {
   getCertificateTitle,
   type CertificateDeliveryRequest,
 } from "@/lib/certificates/content";
+import { loadCertificateSignatureSettings } from "@/lib/certificates/signature";
 import { resolveCertificateText } from "@/lib/certificates/templates";
 
 const A4_PAGE_SIZE: [number, number] = [595.28, 841.89];
@@ -213,6 +214,7 @@ export async function buildCertificatePdf(
   const labelValueFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const issuedAt = request.approved_at ? new Date(request.approved_at) : new Date();
   const resolvedCertificateText = await resolveCertificateText(request);
+  const signatureSettings = await loadCertificateSignatureSettings();
 
   pdfDoc.setTitle(`${getCertificateTitle(request)} - ${request.student_last_name}`);
   pdfDoc.setAuthor("Giovani per la Pace");
@@ -314,19 +316,26 @@ export async function buildCertificatePdf(
   }
 
   const signatureTopY = 172;
-  const signatureImage = await embedOptionalImage(pdfDoc, [
+  const signatureImageCandidates = [
+    signatureSettings.signatureImageFileName,
     "signature.png",
     "signature.jpg",
     "signature.jpeg",
+  ].filter((value, index, values) => values.indexOf(value) === index);
+  const signatureImage = await embedOptionalImage(pdfDoc, [
+    ...signatureImageCandidates,
   ]);
 
-  page.drawText(`Rilasciato a Roma, ${formatItalianDate(issuedAt)}`, {
+  page.drawText(
+    `Rilasciato a ${signatureSettings.issuedInCity}, ${formatItalianDate(issuedAt)}`,
+    {
     x: marginX,
     y: signatureTopY + 48,
     size: 12,
     font: bodyItalicFont,
     color: rgb(0.28, 0.28, 0.28),
-  });
+    },
+  );
 
   const signatureBaseY = signatureTopY - 12;
   const signatureX = marginX + 40;
@@ -348,7 +357,7 @@ export async function buildCertificatePdf(
     color: rgb(0.54, 0.54, 0.54),
   });
 
-  page.drawText("Prof. Stefano Orlando", {
+  page.drawText(signatureSettings.signerName, {
     x: signatureX,
     y: signatureBaseY - 14,
     size: 13,
@@ -356,7 +365,7 @@ export async function buildCertificatePdf(
     color: rgb(0.2, 0.2, 0.2),
   });
 
-  page.drawText("Coordinatore attività giovanili", {
+  page.drawText(signatureSettings.signerRole, {
     x: signatureX,
     y: signatureBaseY - 34,
     size: 12,
@@ -364,21 +373,25 @@ export async function buildCertificatePdf(
     color: rgb(0.36, 0.36, 0.36),
   });
 
-  page.drawText("Tel. 328/5699419", {
-    x: signatureX,
-    y: signatureBaseY - 53,
-    size: 11,
-    font: bodyFont,
-    color: rgb(0.36, 0.36, 0.36),
-  });
+  if (signatureSettings.signerPhone) {
+    page.drawText(`Tel. ${signatureSettings.signerPhone}`, {
+      x: signatureX,
+      y: signatureBaseY - 53,
+      size: 11,
+      font: bodyFont,
+      color: rgb(0.36, 0.36, 0.36),
+    });
+  }
 
-  page.drawText("Email: info@giovaniperlapace.it", {
-    x: signatureX,
-    y: signatureBaseY - 70,
-    size: 11,
-    font: bodyFont,
-    color: rgb(0.36, 0.36, 0.36),
-  });
+  if (signatureSettings.signerEmail) {
+    page.drawText(`Email: ${signatureSettings.signerEmail}`, {
+      x: signatureX,
+      y: signatureBaseY - 70,
+      size: 11,
+      font: bodyFont,
+      color: rgb(0.36, 0.36, 0.36),
+    });
+  }
 
   const footerImage = await embedOptionalImage(pdfDoc, [
     "footer.png",

@@ -179,6 +179,42 @@ export type Database = {
           },
         ]
       }
+      certificate_signature_settings: {
+        Row: {
+          created_at: string
+          id: string
+          issued_in_city: string
+          signature_image_file_name: string
+          signer_email: string | null
+          signer_name: string
+          signer_phone: string | null
+          signer_role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          issued_in_city: string
+          signature_image_file_name: string
+          signer_email?: string | null
+          signer_name: string
+          signer_phone?: string | null
+          signer_role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          issued_in_city?: string
+          signature_image_file_name?: string
+          signer_email?: string | null
+          signer_name?: string
+          signer_phone?: string | null
+          signer_role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       certificate_templates: {
         Row: {
           body_template: string

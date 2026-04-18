@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { FlashMessage } from "@/components/admin/flash-message";
 import { PageHeader } from "@/components/admin/page-header";
-import { saveCertificateTemplatesAction } from "@/app/admin/actions";
+import {
+  saveCertificateSignatureSettingsAction,
+  saveCertificateTemplatesAction,
+} from "@/app/admin/actions";
 import { requireAdmin } from "@/lib/auth/admin";
+import { loadCertificateSignatureSettings } from "@/lib/certificates/signature";
 import {
   CERTIFICATE_TEMPLATE_PLACEHOLDERS,
   loadCertificateTemplates,
@@ -53,6 +57,7 @@ export default async function AdminDashboardPage({
     activeCoordinators,
     submittedRequests,
     templates,
+    signatureSettings,
   ] = await Promise.all([
     getCount(supabase, "schools"),
     getCount(supabase, "schools", { column: "is_active", value: true }),
@@ -62,6 +67,7 @@ export default async function AdminDashboardPage({
     getCount(supabase, "coordinators", { column: "is_active", value: true }),
     getCount(supabase, "certificate_requests"),
     loadCertificateTemplates(),
+    loadCertificateSignatureSettings(),
   ]);
 
   const cards = [
@@ -240,6 +246,107 @@ export default async function AdminDashboardPage({
               className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
             >
               Salva template certificati
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="space-y-3 border-b border-zinc-200 pb-5">
+          <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
+            Firma certificato
+          </h2>
+          <p className="max-w-3xl text-sm leading-6 text-zinc-600">
+            Qui puoi modificare i testi dell&apos;area firma e il nome del file
+            immagine usato nel PDF. L&apos;immagine deve stare in
+            `public/certificate-assets/`.
+          </p>
+        </div>
+
+        <form action={saveCertificateSignatureSettingsAction} className="mt-6 space-y-6">
+          <input type="hidden" name="redirect_to" value="/admin" />
+
+          <div className="grid gap-5 xl:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-zinc-800">
+                Citta&apos; di rilascio
+              </span>
+              <input
+                name="issued_in_city"
+                defaultValue={signatureSettings.issuedInCity}
+                className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-zinc-800">
+                Nome file immagine firma
+              </span>
+              <input
+                name="signature_image_file_name"
+                defaultValue={signatureSettings.signatureImageFileName}
+                className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
+              />
+              <p className="text-xs leading-5 text-zinc-500">
+                Esempio: `signature.png`. Se il file non esiste, il sistema usa
+                il fallback standard.
+              </p>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-zinc-800">
+                Nome firmatario
+              </span>
+              <input
+                name="signer_name"
+                defaultValue={signatureSettings.signerName}
+                className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-zinc-800">
+                Ruolo firmatario
+              </span>
+              <input
+                name="signer_role"
+                defaultValue={signatureSettings.signerRole}
+                className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-zinc-800">
+                Telefono firmatario (opzionale)
+              </span>
+              <input
+                name="signer_phone"
+                defaultValue={signatureSettings.signerPhone ?? ""}
+                className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-zinc-800">
+                Email firmatario (opzionale)
+              </span>
+              <input
+                name="signer_email"
+                defaultValue={signatureSettings.signerEmail ?? ""}
+                className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-zinc-500">
+              Le modifiche si applicano ai PDF generati da questo momento in poi.
+            </p>
+            <button
+              type="submit"
+              className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
+            >
+              Salva impostazioni firma
             </button>
           </div>
         </form>

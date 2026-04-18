@@ -59,6 +59,16 @@ function validateLength(label: string, value: string, maxLength: number) {
   }
 }
 
+function validateImageFileName(value: string) {
+  const normalized = value.trim().toLowerCase();
+
+  if (!/^[a-z0-9._-]+\.(png|jpg|jpeg)$/.test(normalized)) {
+    throw new Error(
+      "Il nome file immagine firma deve essere un file png, jpg o jpeg (esempio: signature.png).",
+    );
+  }
+}
+
 export async function signOutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
@@ -139,6 +149,74 @@ export async function saveCertificateTemplatesAction(formData: FormData) {
       handleActionError(
         error,
         "Impossibile aggiornare i template dei certificati.",
+      ),
+    );
+  }
+}
+
+export async function saveCertificateSignatureSettingsAction(formData: FormData) {
+  const redirectTo = readRedirectPath(formData, "/admin");
+
+  try {
+    const { supabase } = await assertAdmin();
+    const issuedInCity = readRequiredString(formData, "issued_in_city");
+    const signatureImageFileName = readRequiredString(
+      formData,
+      "signature_image_file_name",
+    );
+    const signerName = readRequiredString(formData, "signer_name");
+    const signerRole = readRequiredString(formData, "signer_role");
+    const signerPhone = readOptionalString(formData, "signer_phone");
+    const signerEmail = readOptionalString(formData, "signer_email");
+
+    validateLength("citta' di rilascio", issuedInCity, 80);
+    validateLength("nome firmatario", signerName, 140);
+    validateLength("ruolo firmatario", signerRole, 180);
+    validateLength("nome file immagine firma", signatureImageFileName, 120);
+    validateImageFileName(signatureImageFileName);
+
+    if (signerPhone) {
+      validateLength("telefono firmatario", signerPhone, 80);
+    }
+
+    if (signerEmail) {
+      validateLength("email firmatario", signerEmail, 320);
+    }
+
+    const { error } = await supabase
+      .from("certificate_signature_settings")
+      .upsert(
+        {
+          id: "default",
+          issued_in_city: issuedInCity,
+          signature_image_file_name: signatureImageFileName,
+          signer_name: signerName,
+          signer_role: signerRole,
+          signer_phone: signerPhone,
+          signer_email: signerEmail,
+        },
+        {
+          onConflict: "id",
+        },
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    revalidatePath("/admin");
+    redirectWithMessage(
+      redirectTo,
+      "success",
+      "Impostazioni firma certificate aggiornate.",
+    );
+  } catch (error) {
+    redirectWithMessage(
+      redirectTo,
+      "error",
+      handleActionError(
+        error,
+        "Impossibile aggiornare le impostazioni firma certificate.",
       ),
     );
   }

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import type { FormEvent } from "react";
 import { startTransition, useDeferredValue, useState } from "react";
+import { deleteCertificateRequestAction } from "@/app/admin/actions";
 import {
   SortableHeaderButton,
   TableActionButton,
@@ -187,6 +189,19 @@ export function RequestsAdminTable({ requests }: RequestsAdminTableProps) {
     });
   }
 
+  function confirmDeleteRequest(
+    event: FormEvent<HTMLFormElement>,
+    studentLabel: string,
+  ) {
+    const isConfirmed = window.confirm(
+      `Confermi l'eliminazione della richiesta di ${studentLabel}? L'operazione e' irreversibile.`,
+    );
+
+    if (!isConfirmed) {
+      event.preventDefault();
+    }
+  }
+
   return (
     <TablePanel
       title="Richieste ricevute"
@@ -343,12 +358,54 @@ export function RequestsAdminTable({ requests }: RequestsAdminTableProps) {
                     {formatDateTime(request.submitted_at)}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/admin/richieste/${request.id}`}
-                      className="inline-flex rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
-                    >
-                      Apri
-                    </Link>
+                    <div className="inline-flex items-center justify-end gap-2">
+                      <Link
+                        href={`/admin/richieste/${request.id}`}
+                        className="inline-flex rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
+                      >
+                        Apri
+                      </Link>
+                      <form
+                        action={deleteCertificateRequestAction}
+                        onSubmit={(event) =>
+                          confirmDeleteRequest(
+                            event,
+                            `${request.student_first_name} ${request.student_last_name}`,
+                          )
+                        }
+                      >
+                        <input type="hidden" name="id" value={request.id} />
+                        <input
+                          type="hidden"
+                          name="redirect_to"
+                          value="/admin/richieste"
+                        />
+                        <button
+                          type="submit"
+                          className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                          aria-label={`Elimina richiesta ${request.student_first_name} ${request.student_last_name}`}
+                          title="Elimina richiesta"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          >
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                            <path d="M10 11v6" />
+                            <path d="M14 11v6" />
+                          </svg>
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))

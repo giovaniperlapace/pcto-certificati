@@ -51,6 +51,38 @@ function handleActionError(error: unknown, fallbackMessage: string) {
   return fallbackMessage;
 }
 
+function mapServiceUpsertError(error: unknown) {
+  if (typeof error !== "object" || error === null) {
+    return null;
+  }
+
+  const databaseError = error as {
+    code?: unknown;
+    details?: unknown;
+    message?: unknown;
+  };
+
+  const code =
+    typeof databaseError.code === "string" ? databaseError.code : null;
+  const details =
+    typeof databaseError.details === "string" ? databaseError.details : "";
+  const message =
+    typeof databaseError.message === "string" ? databaseError.message : "";
+
+  if (
+    code === "23505" &&
+    (message.includes("services_name_key") || details.includes("lower(name)"))
+  ) {
+    return "Esiste gia' un servizio con questo nome. Apri quello esistente per modificarlo oppure usa un nome diverso.";
+  }
+
+  if (message.includes("services_time_range_valid")) {
+    return "L'ora inizio deve essere precedente all'ora fine.";
+  }
+
+  return null;
+}
+
 function validateLength(label: string, value: string, maxLength: number) {
   if (value.length > maxLength) {
     throw new Error(
@@ -487,7 +519,8 @@ export async function upsertServiceAction(formData: FormData) {
     redirectWithMessage(
       redirectTo,
       "error",
-      handleActionError(error, "Impossibile salvare il servizio."),
+      mapServiceUpsertError(error) ??
+        handleActionError(error, "Impossibile salvare il servizio."),
     );
   }
 }
@@ -542,6 +575,35 @@ export async function deleteServiceAction(formData: FormData) {
       redirectTo,
       "error",
       handleActionError(error, "Impossibile eliminare il servizio."),
+    );
+  }
+}
+
+export async function deleteCertificateRequestAction(formData: FormData) {
+  const redirectTo = readRedirectPath(formData, "/admin/richieste");
+
+  try {
+    const { supabase } = await assertAdmin();
+    const id = readRequiredString(formData, "id");
+
+    const { error } = await supabase
+      .from("certificate_requests")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/richieste");
+    revalidatePath(`/admin/richieste/${id}`);
+    redirectWithMessage(redirectTo, "success", "Richiesta eliminata.");
+  } catch (error) {
+    redirectWithMessage(
+      redirectTo,
+      "error",
+      handleActionError(error, "Impossibile eliminare la richiesta."),
     );
   }
 }

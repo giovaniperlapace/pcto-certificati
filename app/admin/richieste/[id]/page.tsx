@@ -148,7 +148,7 @@ export default async function AdminRequestDetailPage({
       <PageHeader
         eyebrow="Richiesta admin"
         title={`${request.student_first_name} ${request.student_last_name}`}
-        description="Vista completa della richiesta ricevuta, inclusi dati studente, snapshot per certificato, stato revisione e storico operativo."
+        description="Nel dettaglio puoi verificare i dati salvati e monitorare lo stato della pratica con la stessa impostazione usata dal coordinatore."
         actions={
           <Link
             href="/admin/richieste"
@@ -164,7 +164,7 @@ export default async function AdminRequestDetailPage({
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-zinc-600">Stato</p>
-          <div className="mt-3">
+          <div className="mt-3 flex items-center gap-2">
             <RequestStatusBadge status={request.status} />
           </div>
           <p className="mt-3 text-sm text-zinc-500">{statusMeta.description}</p>
@@ -176,22 +176,21 @@ export default async function AdminRequestDetailPage({
             {formatDateTime(request.submitted_at)}
           </p>
           <p className="mt-1 text-sm text-zinc-500">
-            Aggiornata il {formatDateTime(request.updated_at)}
+            Ultimo aggiornamento {formatDateTime(request.updated_at)}
           </p>
         </article>
 
         <article className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-zinc-600">Certificato</p>
-          <p className="mt-2 text-lg font-semibold text-zinc-950">
-            {formatCertificateType(request.certificate_type)}
-          </p>
-          <p className="mt-1 text-sm text-zinc-500">
-            Anno {schoolYear?.label ?? "non disponibile"}
-          </p>
+          <p className="text-sm font-medium text-zinc-600">Destinatari finali</p>
+          <div className="mt-2 space-y-1 text-sm text-zinc-600">
+            <p>Studente: {request.student_email}</p>
+            <p>Scuola: {school?.school_email ?? "non disponibile"}</p>
+            <p>Docente: {request.teacher_email_snapshot ?? "non disponibile"}</p>
+          </div>
         </article>
 
         <article className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-zinc-600">Consegna</p>
+          <p className="text-sm font-medium text-zinc-600">Stato consegna</p>
           <div className="mt-2 space-y-1 text-sm text-zinc-600">
             <p>PDF: {request.pdf_generated_at ? "Generato" : "Non generato"}</p>
             <p>Studente: {request.student_emailed_at ? "Inviato" : "Non inviato"}</p>
@@ -206,60 +205,33 @@ export default async function AdminRequestDetailPage({
           <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
             <div className="border-b border-zinc-200 pb-4">
               <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-                Dati richiesta
+                Revisione della richiesta
               </h2>
               <p className="mt-1 text-sm leading-6 text-zinc-600">
-                Questi sono i dati salvati dal form pubblico e gli eventuali
-                aggiornamenti fatti in revisione.
+                Vista in sola lettura con la stessa struttura del dettaglio
+                coordinatore, utile per controllo e supporto operativo.
               </p>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               {[
-                ["Nome", request.student_first_name],
-                ["Cognome", request.student_last_name],
+                ["Studente", `${request.student_first_name} ${request.student_last_name}`],
                 ["Email studente", request.student_email],
                 ["Classe", request.class_label],
                 ["Tipo certificato", formatCertificateType(request.certificate_type)],
+                ["Anno scolastico", schoolYear?.label ?? "-"],
                 ["Ore richieste", request.hours_requested?.toString() ?? "-"],
                 ["Ore approvate", request.hours_approved?.toString() ?? "-"],
-                ["Note studente", request.student_notes ?? "-"],
-              ].map(([label, value]) => (
-                <article
-                  key={label}
-                  className="rounded-2xl border border-zinc-200 p-4"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                    {label}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-700">{value}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
-            <div className="border-b border-zinc-200 pb-4">
-              <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-                Snapshot certificato
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-zinc-600">
-                Nome scuola e servizio vengono congelati sulla richiesta per
-                mantenere coerente il certificato anche se le anagrafiche cambiano.
-              </p>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {[
                 ["Scuola", request.school_name_snapshot],
                 ["Email scuola", school?.school_email ?? "-"],
-                ["Docente", request.teacher_name_snapshot ?? "-"],
-                ["Email docente", request.teacher_email_snapshot ?? "-"],
                 ["Servizio", request.service_name_snapshot],
                 ["Orario servizio", request.service_schedule_snapshot],
                 ["Indirizzo servizio", request.service_address_snapshot],
+                ["Docente", request.teacher_name_snapshot ?? "-"],
+                ["Email docente", request.teacher_email_snapshot ?? "-"],
                 ["Invio copia scuola", formatBoolean(request.send_to_school)],
                 ["Invio copia docente", formatBoolean(request.send_to_teacher)],
+                ["Note studente", request.student_notes ?? "-"],
               ].map(([label, value]) => (
                 <article
                   key={label}
@@ -316,7 +288,7 @@ export default async function AdminRequestDetailPage({
         <div className="space-y-8">
           <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-              Revisione
+              Stato revisione
             </h2>
             <div className="mt-5 space-y-3 text-sm leading-6 text-zinc-600">
               <p>Revisione avviata: {formatDateTime(request.reviewed_at)}</p>

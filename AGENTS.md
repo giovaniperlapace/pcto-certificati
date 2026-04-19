@@ -522,6 +522,7 @@ La versione `1.0` copre gia':
   con gli stessi placeholder del template admin
 - consultazione admin di tutte le richieste ricevute in tabella ricercabile e
   ordinabile, con dettaglio in sola lettura
+- eliminazione manuale di richieste test dall'area admin con conferma esplicita
 - footer globale permanente con versione app, data ultima modifica e contatto
   `info@giovaniperlapace.it`
 

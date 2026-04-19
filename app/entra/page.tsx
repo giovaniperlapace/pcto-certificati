@@ -73,7 +73,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                   required
                   type="email"
                   name="email"
-                  placeholder="info@giovaniperlapace.it"
+                  placeholder="e-mail"
                   className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
                 />
               </label>

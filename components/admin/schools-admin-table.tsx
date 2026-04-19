@@ -508,7 +508,6 @@ export function SchoolsAdminTable({ schools }: SchoolsAdminTableProps) {
 
             <TableCheckboxField
               label="Scuola attiva"
-              description="Per l'MVP non cancelliamo i record: questo flag basta per escludere una scuola dal flusso."
               className="md:col-span-2"
             >
               <input

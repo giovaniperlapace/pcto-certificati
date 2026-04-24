@@ -331,6 +331,209 @@ export type Database = {
           },
         ]
       }
+      pcto_attendance_records: {
+        Row: {
+          check_in_time: string | null
+          check_out_time: string | null
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          imported_at: string
+          notes: string | null
+          raw_data: Json
+          school_year_id: string
+          service_date: string | null
+          service_name: string | null
+          source_code: string
+          source_row_number: number
+          source_sheet_name: string
+          source_spreadsheet_id: string
+          student_first_name: string | null
+          student_last_name: string | null
+          student_registration_id: string | null
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          imported_at?: string
+          notes?: string | null
+          raw_data?: Json
+          school_year_id: string
+          service_date?: string | null
+          service_name?: string | null
+          source_code: string
+          source_row_number: number
+          source_sheet_name?: string
+          source_spreadsheet_id: string
+          student_first_name?: string | null
+          student_last_name?: string | null
+          student_registration_id?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          imported_at?: string
+          notes?: string | null
+          raw_data?: Json
+          school_year_id?: string
+          service_date?: string | null
+          service_name?: string | null
+          source_code?: string
+          source_row_number?: number
+          source_sheet_name?: string
+          source_spreadsheet_id?: string
+          student_first_name?: string | null
+          student_last_name?: string | null
+          student_registration_id?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pcto_attendance_records_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pcto_attendance_records_student_registration_id_fkey"
+            columns: ["student_registration_id"]
+            isOneToOne: false
+            referencedRelation: "pcto_student_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pcto_student_registrations: {
+        Row: {
+          assigned_service_name: string | null
+          attendance_count: number | null
+          certificate_type: Database["public"]["Enums"]["certificate_type"]
+          class_section: string | null
+          class_year: string | null
+          created_at: string
+          display_name: string | null
+          duplicate_code: string | null
+          duplicate_marker: string | null
+          friend_preferences: string | null
+          id: string
+          imported_at: string
+          internal_notes: string | null
+          invitation_sent: boolean | null
+          raw_data: Json
+          registration_status: string | null
+          registration_submitted_at: string | null
+          registry_confirmed: boolean | null
+          school_name: string | null
+          school_year_id: string
+          source_code: string
+          source_row_number: number
+          source_sheet_name: string
+          source_spreadsheet_id: string
+          student_address: string | null
+          student_email: string | null
+          student_first_name: string
+          student_last_name: string
+          student_notes: string | null
+          student_phone: string | null
+          teacher_name: string | null
+          unavailable_days: string | null
+          updated_at: string
+          waiting_list_position: number | null
+        }
+        Insert: {
+          assigned_service_name?: string | null
+          attendance_count?: number | null
+          certificate_type?: Database["public"]["Enums"]["certificate_type"]
+          class_section?: string | null
+          class_year?: string | null
+          created_at?: string
+          display_name?: string | null
+          duplicate_code?: string | null
+          duplicate_marker?: string | null
+          friend_preferences?: string | null
+          id?: string
+          imported_at?: string
+          internal_notes?: string | null
+          invitation_sent?: boolean | null
+          raw_data?: Json
+          registration_status?: string | null
+          registration_submitted_at?: string | null
+          registry_confirmed?: boolean | null
+          school_name?: string | null
+          school_year_id: string
+          source_code: string
+          source_row_number: number
+          source_sheet_name?: string
+          source_spreadsheet_id: string
+          student_address?: string | null
+          student_email?: string | null
+          student_first_name: string
+          student_last_name: string
+          student_notes?: string | null
+          student_phone?: string | null
+          teacher_name?: string | null
+          unavailable_days?: string | null
+          updated_at?: string
+          waiting_list_position?: number | null
+        }
+        Update: {
+          assigned_service_name?: string | null
+          attendance_count?: number | null
+          certificate_type?: Database["public"]["Enums"]["certificate_type"]
+          class_section?: string | null
+          class_year?: string | null
+          created_at?: string
+          display_name?: string | null
+          duplicate_code?: string | null
+          duplicate_marker?: string | null
+          friend_preferences?: string | null
+          id?: string
+          imported_at?: string
+          internal_notes?: string | null
+          invitation_sent?: boolean | null
+          raw_data?: Json
+          registration_status?: string | null
+          registration_submitted_at?: string | null
+          registry_confirmed?: boolean | null
+          school_name?: string | null
+          school_year_id?: string
+          source_code?: string
+          source_row_number?: number
+          source_sheet_name?: string
+          source_spreadsheet_id?: string
+          student_address?: string | null
+          student_email?: string | null
+          student_first_name?: string
+          student_last_name?: string
+          student_notes?: string | null
+          student_phone?: string | null
+          teacher_name?: string | null
+          unavailable_days?: string | null
+          updated_at?: string
+          waiting_list_position?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pcto_student_registrations_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_events: {
         Row: {
           actor_type: Database["public"]["Enums"]["request_actor_type"]

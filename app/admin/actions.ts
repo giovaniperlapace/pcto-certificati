@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/admin";
 import { validateCertificateTemplateText } from "@/lib/certificates/templates";
 import {
+  syncPctoGoogleSheetImport,
+} from "@/lib/pcto/google-sheet-sync";
+import {
   createAdminClient,
   ensureAuthUserForEmail,
 } from "@/lib/supabase/admin";
@@ -249,6 +252,32 @@ export async function saveCertificateSignatureSettingsAction(formData: FormData)
       handleActionError(
         error,
         "Impossibile aggiornare le impostazioni firma certificate.",
+      ),
+    );
+  }
+}
+
+export async function syncPctoGoogleSheetImportAction(formData: FormData) {
+  const redirectTo = readRedirectPath(formData, "/admin");
+
+  try {
+    await assertAdmin();
+    const adminSupabase = createAdminClient();
+    const result = await syncPctoGoogleSheetImport(adminSupabase);
+
+    revalidatePath("/admin");
+    redirectWithMessage(
+      redirectTo,
+      "success",
+      `Sincronizzazione PCTO completata. Iscritti letti: ${result.registrationRowsProcessed}, presenze lette: ${result.attendanceRowsProcessed}, presenze collegate: ${result.attendanceRowsLinked}.`,
+    );
+  } catch (error) {
+    redirectWithMessage(
+      redirectTo,
+      "error",
+      handleActionError(
+        error,
+        "Impossibile sincronizzare i dati PCTO dal Google Fogli.",
       ),
     );
   }

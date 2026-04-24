@@ -5,6 +5,7 @@ import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import {
   saveCertificateSignatureSettingsAction,
   saveCertificateTemplatesAction,
+  syncPctoGoogleSheetImportAction,
 } from "@/app/admin/actions";
 import { requireAdmin } from "@/lib/auth/admin";
 import { loadCertificateSignatureSettings } from "@/lib/certificates/signature";
@@ -12,6 +13,7 @@ import {
   CERTIFICATE_TEMPLATE_PLACEHOLDERS,
   loadCertificateTemplates,
 } from "@/lib/certificates/templates";
+import { getPctoGoogleSheetUrl } from "@/lib/pcto/google-sheet-sync";
 
 async function getCount(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
@@ -97,6 +99,7 @@ export default async function AdminDashboardPage({
       href: "/admin/richieste",
     },
   ];
+  const pctoGoogleSheetUrl = getPctoGoogleSheetUrl();
 
   return (
     <div className="space-y-8">
@@ -124,6 +127,47 @@ export default async function AdminDashboardPage({
             </div>
           </Link>
         ))}
+      </section>
+
+      <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="space-y-3 border-b border-zinc-200 pb-5">
+          <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
+            Import PCTO da Google Fogli
+          </h2>
+          <p className="max-w-3xl text-sm leading-6 text-zinc-600">
+            Questo comando legge i fogli `Iscritti` e `Presenze`, importa le
+            righe nuove e aggiorna quelle modificate nelle tabelle di staging
+            PCTO in Supabase.
+          </p>
+        </div>
+
+        <form action={syncPctoGoogleSheetImportAction} className="mt-6 space-y-4">
+          <input type="hidden" name="redirect_to" value="/admin" />
+
+          <p className="text-sm text-zinc-500">
+            Sorgente:{" "}
+            <a
+              href={pctoGoogleSheetUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-zinc-950 underline decoration-zinc-300 underline-offset-4 hover:decoration-zinc-950"
+            >
+              PCTO_Volontariato_2025
+            </a>
+          </p>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-zinc-500">
+              La sincronizzazione non cancella righe esistenti: aggiunge nuovi
+              record e riallinea quelli gia&apos; importati.
+            </p>
+            <PendingSubmitButton
+              className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
+              idleLabel="Sincronizza dati PCTO"
+              pendingLabel="Sincronizzazione PCTO in corso..."
+            />
+          </div>
+        </form>
       </section>
 
       <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">

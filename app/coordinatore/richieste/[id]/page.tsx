@@ -648,6 +648,8 @@ export default async function CoordinatorRequestDetailPage({
                     {request.pdf_storage_path ? (
                       <Link
                         href={`${requestPath}/certificato`}
+                        target="_blank"
+                        rel="noreferrer"
                         className="rounded-full border border-zinc-200 bg-white px-5 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
                       >
                         Scarica PDF
@@ -733,6 +735,8 @@ export default async function CoordinatorRequestDetailPage({
                 {request.pdf_storage_path ? (
                   <Link
                     href={`${requestPath}/certificato`}
+                    target="_blank"
+                    rel="noreferrer"
                     className="font-medium text-zinc-950 underline underline-offset-4"
                   >
                     Scarica certificato

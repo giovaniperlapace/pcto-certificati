@@ -3,7 +3,10 @@ import Link from "next/link";
 import { signOutAction } from "@/app/admin/actions";
 import { requireCoordinator } from "@/lib/auth/admin";
 
-const navigation = [{ href: "/coordinatore", label: "Dashboard" }];
+const navigation = [
+  { href: "/coordinatore", label: "Dashboard" },
+  { href: "/coordinatore/pcto", label: "Studenti PCTO" },
+];
 
 export default async function CoordinatorLayout({
   children,

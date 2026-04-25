@@ -90,6 +90,10 @@ function normalizeText(value: string | null | undefined) {
   return value.replace(/\r/g, " ").trim().replace(/\s+/g, " ");
 }
 
+function isConcludedRegistrationStatus(value: string | null | undefined) {
+  return normalizeText(value).toLowerCase() === "concluso";
+}
+
 function blankToNull(value: string | null | undefined) {
   const normalized = normalizeText(value);
   return normalized === "" ? null : normalized;
@@ -524,6 +528,27 @@ async function upsertRegistrationRows(
   }
 }
 
+async function loadConcludedRegistrationCodes(
+  supabase: AdminClient,
+  schoolYearId: string,
+) {
+  const { data, error } = await supabase
+    .from("pcto_student_registrations")
+    .select("source_code, registration_status")
+    .eq("school_year_id", schoolYearId)
+    .eq("source_spreadsheet_id", PCTO_GOOGLE_SHEET_ID);
+
+  if (error) {
+    throw error;
+  }
+
+  return new Set(
+    (data ?? [])
+      .filter((row) => isConcludedRegistrationStatus(row.registration_status))
+      .map((row) => row.source_code),
+  );
+}
+
 async function loadRegistrationIdsByCode(
   supabase: AdminClient,
   schoolYearId: string,
@@ -563,8 +588,20 @@ export async function syncPctoGoogleSheetImport(supabase: AdminClient) {
   const registrationRows = parseSheetRows(registrationsCsv);
   const attendanceRows = parseSheetRows(attendanceCsv);
 
+  const concludedRegistrationCodes = await loadConcludedRegistrationCodes(
+    supabase,
+    schoolYearId,
+  );
   const registrationInserts = registrationRows
     .map((row) => buildRegistrationInsert(row, schoolYearId))
+    .map((row) =>
+      row && concludedRegistrationCodes.has(row.source_code)
+        ? {
+            ...row,
+            registration_status: "Concluso",
+          }
+        : row,
+    )
     .filter((row): row is RegistrationInsert => row !== null);
   const registrationRowsSkipped = registrationRows.length - registrationInserts.length;
 

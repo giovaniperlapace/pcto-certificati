@@ -23,6 +23,12 @@ type NewRequestNotificationTemplate = {
   text: string;
 };
 
+type PctoImportedStudentNotificationTemplate = {
+  html: string;
+  subject: string;
+  text: string;
+};
+
 let cachedTransporter: ReturnType<typeof nodemailer.createTransport> | null = null;
 
 function escapeHtml(value: string) {
@@ -205,6 +211,57 @@ function buildNewRequestNotificationTemplate(params: {
   } satisfies NewRequestNotificationTemplate;
 }
 
+function buildPctoImportedStudentNotificationTemplate(params: {
+  coordinatorDashboardUrl: string;
+  serviceName: string;
+  sourceCode: string;
+  studentFirstName: string;
+  studentLastName: string;
+}) {
+  const subject = `Richiesta certificato PCTO - ${params.studentFirstName} ${params.studentLastName}`;
+  const escapedStudent = escapeHtml(
+    `${params.studentFirstName} ${params.studentLastName}`,
+  );
+  const escapedSourceCode = escapeHtml(params.sourceCode);
+  const escapedServiceName = escapeHtml(params.serviceName);
+  const escapedDashboardUrl = escapeHtml(params.coordinatorDashboardUrl);
+
+  return {
+    subject,
+    text: [
+      "Buongiorno,",
+      "",
+      "Uno studente gia' presente nell'elenco PCTO ha richiesto il certificato usando il proprio codice ID.",
+      "",
+      `Studente: ${params.studentFirstName} ${params.studentLastName}`,
+      `Codice ID: ${params.sourceCode}`,
+      `Servizio: ${params.serviceName}`,
+      "",
+      "Accedi all'area coordinatore, sezione Studenti PCTO, per generare e inviare il certificato se opportuno.",
+      "",
+      `Area coordinatore PCTO: ${params.coordinatorDashboardUrl}`,
+      "",
+      "Giovani per la Pace",
+    ].join("\n"),
+    html: `
+      <div style="font-family: Georgia, 'Times New Roman', serif; color: #27272a; line-height: 1.6;">
+        <p>Buongiorno,</p>
+        <p>Uno studente gia' presente nell'elenco PCTO ha richiesto il certificato usando il proprio codice ID.</p>
+        <p>
+          <strong>Studente:</strong> ${escapedStudent}<br />
+          <strong>Codice ID:</strong> ${escapedSourceCode}<br />
+          <strong>Servizio:</strong> ${escapedServiceName}
+        </p>
+        <p>Accedi all'area coordinatore, sezione Studenti PCTO, per generare e inviare il certificato se opportuno.</p>
+        <p>
+          <a href="${escapedDashboardUrl}">Apri Studenti PCTO</a>
+        </p>
+        <p style="margin-top: 24px;">Giovani per la Pace</p>
+      </div>
+    `.trim(),
+  } satisfies PctoImportedStudentNotificationTemplate;
+}
+
 export async function sendCertificateEmail(params: {
   pdfBytes: Uint8Array;
   recipientEmail: string;
@@ -251,6 +308,32 @@ export async function sendNewRequestNotificationEmail(params: {
   const transporter = getTransporter();
   const gmail = getGmailEnv();
   const template = buildNewRequestNotificationTemplate(params);
+
+  const info = await transporter.sendMail({
+    from: `"Giovani per la Pace" <${gmail.user}>`,
+    replyTo: gmail.user,
+    to: params.recipientEmail,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
+  });
+
+  return {
+    messageId: info.messageId ?? null,
+  };
+}
+
+export async function sendPctoImportedStudentCertificateRequestEmail(params: {
+  coordinatorDashboardUrl: string;
+  recipientEmail: string;
+  serviceName: string;
+  sourceCode: string;
+  studentFirstName: string;
+  studentLastName: string;
+}) {
+  const transporter = getTransporter();
+  const gmail = getGmailEnv();
+  const template = buildPctoImportedStudentNotificationTemplate(params);
 
   const info = await transporter.sendMail({
     from: `"Giovani per la Pace" <${gmail.user}>`,

@@ -3,7 +3,10 @@
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { sendNewRequestNotificationEmail } from "@/lib/certificates/email";
+import {
+  sendNewRequestNotificationEmail,
+  sendPctoImportedStudentCertificateRequestEmail,
+} from "@/lib/certificates/email";
 import {
   createAdminClient,
   listAuthUsersByIds,
@@ -54,8 +57,32 @@ type NewRequestDeliveryResult = {
   status: "sent" | "failed";
 };
 
+type PctoImportedStudent = {
+  assigned_service_name: string | null;
+  id: string;
+  school_year_id: string;
+  source_code: string;
+  student_first_name: string;
+  student_last_name: string;
+};
+
 function redirectToForm(type: "error" | "success", message: string) {
   redirect(`${REQUEST_FORM_PATH}?${type}=${encodeURIComponent(message)}`);
+}
+
+function redirectToPctoManualForm(params: {
+  message: string;
+  studentFirstName: string;
+  studentLastName: string;
+}): never {
+  const query = new URLSearchParams({
+    flow: "pcto-manual",
+    student_first_name: params.studentFirstName,
+    student_last_name: params.studentLastName,
+    success: params.message,
+  });
+
+  redirect(`${REQUEST_FORM_PATH}?${query.toString()}`);
 }
 
 function isNextRedirectError(error: unknown): boolean {
@@ -74,6 +101,19 @@ function isNextRedirectError(error: unknown): boolean {
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+function normalizeMatchText(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
 function toErrorMessage(error: unknown, fallback: string) {
@@ -353,6 +393,220 @@ async function loadAdminNotificationRecipients(
   }
 
   return recipients;
+}
+
+async function loadActiveSchoolYearId(supabase: ReturnType<typeof createAdminClient>) {
+  const { data: activeYear, error } = await supabase
+    .from("school_years")
+    .select("id")
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!activeYear) {
+    throw new Error("Non e' presente un anno scolastico attivo.");
+  }
+
+  return activeYear.id;
+}
+
+async function loadPctoImportedStudentByCode(
+  supabase: ReturnType<typeof createAdminClient>,
+  sourceCode: string,
+) {
+  const schoolYearId = await loadActiveSchoolYearId(supabase);
+  const { data, error } = await supabase
+    .from("pcto_student_registrations")
+    .select(
+      "id, school_year_id, source_code, student_first_name, student_last_name, assigned_service_name",
+    )
+    .eq("school_year_id", schoolYearId)
+    .ilike("source_code", sourceCode)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data satisfies PctoImportedStudent | null;
+}
+
+async function loadPctoServiceCoordinators(
+  supabase: ReturnType<typeof createAdminClient>,
+  serviceName: string,
+) {
+  const { data: services, error: servicesError } = await supabase
+    .from("services")
+    .select("id, name")
+    .eq("is_active", true);
+
+  if (servicesError) {
+    throw servicesError;
+  }
+
+  const service = (services ?? []).find(
+    (candidate) => normalizeMatchText(candidate.name) === normalizeMatchText(serviceName),
+  );
+
+  if (!service) {
+    return null;
+  }
+
+  const { data: assignments, error: assignmentsError } = await supabase
+    .from("service_coordinators")
+    .select("coordinator_id, receives_new_request_notifications")
+    .eq("service_id", service.id);
+
+  if (assignmentsError) {
+    throw assignmentsError;
+  }
+
+  const coordinatorIds = (assignments ?? []).map(
+    (assignment) => assignment.coordinator_id,
+  );
+
+  if (coordinatorIds.length === 0) {
+    throw new Error("Il servizio PCTO non ha coordinatori collegati.");
+  }
+
+  const { data: coordinators, error: coordinatorsError } = await supabase
+    .from("coordinators")
+    .select("id, first_name, last_name, email")
+    .in("id", coordinatorIds)
+    .eq("is_active", true);
+
+  if (coordinatorsError) {
+    throw coordinatorsError;
+  }
+
+  const coordinatorsById = new Map(
+    (coordinators ?? []).map((coordinator) => [coordinator.id, coordinator]),
+  );
+  const notificationRecipients = (assignments ?? [])
+    .filter(
+      (assignment) =>
+        assignment.receives_new_request_notifications &&
+        coordinatorsById.has(assignment.coordinator_id),
+    )
+    .map((assignment) => coordinatorsById.get(assignment.coordinator_id))
+    .filter(isNotificationRecipient);
+  const fallbackRecipients =
+    notificationRecipients.length > 0
+      ? notificationRecipients
+      : (assignments ?? [])
+          .map((assignment) => coordinatorsById.get(assignment.coordinator_id))
+          .filter(isNotificationRecipient);
+
+  if (fallbackRecipients.length === 0) {
+    throw new Error("Il servizio PCTO non ha coordinatori notificabili.");
+  }
+
+  return {
+    service,
+    recipients: fallbackRecipients,
+  };
+}
+
+export async function submitImportedPctoCertificateRequestAction(formData: FormData) {
+  try {
+    const supabase = createAdminClient();
+    const studentFirstName = readRequiredString(formData, "student_first_name");
+    const studentLastName = readRequiredString(formData, "student_last_name");
+    const sourceCode = readRequiredString(formData, "source_code");
+
+    validateLength("nome", studentFirstName, 120);
+    validateLength("cognome", studentLastName, 120);
+    validateLength("codice ID", sourceCode, 120);
+
+    const student = await loadPctoImportedStudentByCode(supabase, sourceCode);
+
+    if (!student) {
+      throw new Error(
+        "Non abbiamo trovato uno studente PCTO con questo codice ID.",
+      );
+    }
+
+    if (
+      normalizeMatchText(student.student_first_name) !==
+        normalizeMatchText(studentFirstName) ||
+      normalizeMatchText(student.student_last_name) !==
+        normalizeMatchText(studentLastName)
+    ) {
+      throw new Error(
+        "Il codice ID non corrisponde al nome e cognome inseriti.",
+      );
+    }
+
+    if (
+      !student.assigned_service_name ||
+      normalizeMatchText(student.assigned_service_name) === "da chiamare"
+    ) {
+      redirectToPctoManualForm({
+        studentFirstName: student.student_first_name,
+        studentLastName: student.student_last_name,
+        message:
+          "Abbiamo trovato il tuo codice ID, ma non risulta ancora un servizio assegnato. Completa la richiesta PCTO con i dati mancanti.",
+      });
+    }
+
+    const assignedServiceName = student.assigned_service_name ?? "";
+    const coordinatorRouting = await loadPctoServiceCoordinators(
+      supabase,
+      assignedServiceName,
+    );
+
+    if (!coordinatorRouting) {
+      return redirectToPctoManualForm({
+        studentFirstName: student.student_first_name,
+        studentLastName: student.student_last_name,
+        message:
+          "Abbiamo trovato il tuo codice ID, ma il servizio assegnato non e' riconosciuto tra i servizi attivi. Completa la richiesta PCTO con i dati mancanti.",
+      });
+    }
+
+    const { service, recipients } = coordinatorRouting;
+    const baseUrl = await getBaseUrl().catch(
+      () => "https://pcto-certificati.vercel.app",
+    );
+    const coordinatorDashboardUrl = `${baseUrl}/coordinatore/pcto`;
+    const deliveryResults = await Promise.allSettled(
+      recipients.map((recipient) =>
+        sendPctoImportedStudentCertificateRequestEmail({
+          coordinatorDashboardUrl,
+          recipientEmail: recipient.email,
+          serviceName: service.name,
+          sourceCode: student.source_code,
+          studentFirstName: student.student_first_name,
+          studentLastName: student.student_last_name,
+        }),
+      ),
+    );
+
+    if (deliveryResults.every((result) => result.status === "rejected")) {
+      throw new Error(
+        "Non e' stato possibile inviare la notifica ai coordinatori.",
+      );
+    }
+
+    redirect(`${REQUEST_CONFIRMATION_PATH}?type=pcto-import`);
+  } catch (error) {
+    if (isNextRedirectError(error)) {
+      throw error;
+    }
+
+    if (error instanceof Error && error.message.trim() !== "") {
+      redirectToForm("error", error.message);
+    }
+
+    console.error("submitImportedPctoCertificateRequestAction failed", error);
+    redirectToForm(
+      "error",
+      "Impossibile inviare la richiesta PCTO in questo momento. Riprova tra poco.",
+    );
+  }
 }
 
 export async function submitCertificateRequestAction(formData: FormData) {

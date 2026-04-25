@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { FlashMessage } from "@/components/admin/flash-message";
-import { CertificateTypeHoursFields } from "@/components/public/certificate-type-hours-fields";
-import { RequestEntitySelectors } from "@/components/public/request-entity-selectors";
-import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
-import { submitCertificateRequestAction } from "@/app/richiedi-certificato/actions";
+import { CertificateRequestFlow } from "@/components/public/certificate-request-flow";
 import { createClient } from "@/lib/supabase/server";
 
 type RequestCertificatePageProps = {
   searchParams: Promise<{
     error?: string;
+    flow?: string;
+    student_first_name?: string;
+    student_last_name?: string;
     success?: string;
   }>;
 };
@@ -106,112 +106,16 @@ export default async function RequestCertificatePage({
                 momento uno di questi prerequisiti manca ancora.
               </article>
             ) : (
-              <form action={submitCertificateRequestAction} className="space-y-6">
-                <div className="grid gap-5 md:grid-cols-2">
-                  <label className="block space-y-2">
-                    <span className="text-sm font-medium text-zinc-800">Nome</span>
-                    <input
-                      required
-                      type="text"
-                      name="student_first_name"
-                      maxLength={120}
-                      className={fieldClassName}
-                    />
-                  </label>
-
-                  <label className="block space-y-2">
-                    <span className="text-sm font-medium text-zinc-800">Cognome</span>
-                    <input
-                      required
-                      type="text"
-                      name="student_last_name"
-                      maxLength={120}
-                      className={fieldClassName}
-                    />
-                  </label>
-
-                  <label className="block space-y-2 md:col-span-2">
-                    <span className="text-sm font-medium text-zinc-800">
-                      Email studente
-                    </span>
-                    <input
-                      required
-                      type="email"
-                      name="student_email"
-                      maxLength={320}
-                      placeholder="nome.cognome@scuola.it"
-                      className={fieldClassName}
-                    />
-                  </label>
-
-                  <label className="block space-y-2">
-                    <span className="text-sm font-medium text-zinc-800">Classe</span>
-                    <input
-                      required
-                      type="text"
-                      name="class_label"
-                      maxLength={80}
-                      placeholder="4B"
-                      className={fieldClassName}
-                    />
-                  </label>
-
-                  <CertificateTypeHoursFields fieldClassName={fieldClassName} />
-
-                  <RequestEntitySelectors
-                    schoolOptions={schoolOptions}
-                    serviceOptions={serviceOptions}
-                  />
-
-                  <label className="block space-y-2 md:col-span-2">
-                    <span className="text-sm font-medium text-zinc-800">
-                      Note per il coordinatore
-                    </span>
-                    <textarea
-                      name="student_notes"
-                      rows={5}
-                      maxLength={2000}
-                      placeholder="Informazioni utili per identificare meglio l'attivita' svolta."
-                      className={fieldClassName}
-                    />
-                  </label>
-                </div>
-
-                <label className="flex items-start gap-3 rounded-2xl border border-zinc-200 p-4 text-sm leading-6 text-zinc-600">
-                  <input
-                    required
-                    type="checkbox"
-                    name="privacy_consent"
-                    className="mt-1 h-4 w-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
-                  />
-                  <span>
-                    Confermo di aver letto l&apos;
-                    <Link
-                      href="/informativa-privacy"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-medium text-zinc-950 underline underline-offset-2 transition hover:text-zinc-700"
-                    >
-                      informativa privacy
-                    </Link>{" "}
-                    e autorizzo il trattamento dei dati strettamente necessari
-                    alla gestione della richiesta di certificato.
-                  </span>
-                </label>
-
-                <div className="hidden" aria-hidden="true">
-                  <label>
-                    Website
-                    <input type="text" name="website" tabIndex={-1} autoComplete="off" />
-                  </label>
-                </div>
-
-                <PendingSubmitButton
-                  className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
-                  idleLabel="Invia richiesta"
-                  pendingLabel="Invio richiesta in corso..."
-                />
-              </form>
+              <CertificateRequestFlow
+                fieldClassName={fieldClassName}
+                initialFirstName={params.student_first_name ?? ""}
+                initialLastName={params.student_last_name ?? ""}
+                initialStep={
+                  params.flow === "pcto-manual" ? "pcto-manual" : "choice"
+                }
+                schoolOptions={schoolOptions}
+                serviceOptions={serviceOptions}
+              />
             )}
           </div>
         </section>

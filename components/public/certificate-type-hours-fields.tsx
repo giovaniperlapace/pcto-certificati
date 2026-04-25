@@ -4,43 +4,55 @@ import { useState } from "react";
 
 type CertificateTypeHoursFieldsProps = {
   fieldClassName: string;
+  fixedCertificateType?: "pcto" | "volontariato";
+  hideCertificateType?: boolean;
 };
 
 export function CertificateTypeHoursFields({
   fieldClassName,
+  fixedCertificateType,
+  hideCertificateType = false,
 }: CertificateTypeHoursFieldsProps) {
   const [certificateType, setCertificateType] = useState<"pcto" | "volontariato">(
-    "pcto",
+    fixedCertificateType ?? "pcto",
   );
   const [showHoursError, setShowHoursError] = useState(false);
 
-  const isPcto = certificateType === "pcto";
+  const effectiveCertificateType = fixedCertificateType ?? certificateType;
+  const shouldShowCertificateType = !hideCertificateType && !fixedCertificateType;
+  const isPcto = effectiveCertificateType === "pcto";
   const hoursClassName = showHoursError
     ? `${fieldClassName} border-rose-400 focus:border-rose-500`
     : fieldClassName;
 
   return (
     <>
-      <label className="block space-y-2">
-        <span className="text-sm font-medium text-zinc-800">Tipo certificato</span>
-        <select
-          required
-          name="certificate_type"
-          value={certificateType}
-          onChange={(event) => {
-            const nextValue = event.currentTarget.value as "pcto" | "volontariato";
-            setCertificateType(nextValue);
+      {fixedCertificateType ? (
+        <input type="hidden" name="certificate_type" value={fixedCertificateType} />
+      ) : null}
 
-            if (nextValue !== "pcto") {
-              setShowHoursError(false);
-            }
-          }}
-          className={fieldClassName}
-        >
-          <option value="pcto">PCTO</option>
-          <option value="volontariato">Volontariato</option>
-        </select>
-      </label>
+      {shouldShowCertificateType ? (
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-zinc-800">Tipo certificato</span>
+          <select
+            required
+            name="certificate_type"
+            value={certificateType}
+            onChange={(event) => {
+              const nextValue = event.currentTarget.value as "pcto" | "volontariato";
+              setCertificateType(nextValue);
+
+              if (nextValue !== "pcto") {
+                setShowHoursError(false);
+              }
+            }}
+            className={fieldClassName}
+          >
+            <option value="pcto">PCTO</option>
+            <option value="volontariato">Volontariato</option>
+          </select>
+        </label>
+      ) : null}
 
       <label className="block space-y-2">
         <span className="text-sm font-medium text-zinc-800">

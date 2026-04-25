@@ -28,6 +28,9 @@ Stato prodotto:
 - da ora in avanti focus su test sul campo e manutenzione correttiva
 - footer globale presente su tutte le pagine con versione app, data ultima
   modifica e email `info@giovaniperlapace.it`
+- import staging PCTO da Google Fogli disponibile da dashboard admin
+- dati importati PCTO separati dalle `certificate_requests`, pronti per futuri
+  flussi di generazione certificato
 
 ### Fase 1 completata
 
@@ -178,6 +181,36 @@ Gia' presente:
 - hardening del flusso invio finale su edge case destinatari mancanti/non validi
 - hardening del download PDF con controlli stato richiesta
 - lint/build/checks QA eseguiti con esito positivo
+
+### Sviluppi successivi gia' introdotti
+
+Import staging PCTO da Google Fogli disponibile in una prima versione usabile.
+
+Gia' presente:
+
+- due nuove tabelle di staging per dati PCTO:
+  - `pcto_student_registrations`
+  - `pcto_attendance_records`
+- import iniziale dati da Google Fogli `PCTO_Volontariato_2025` eseguito su
+  Supabase
+- allineamento manuale gia' fatto su diversi valori importati per rendere
+  utilizzabili i collegamenti con:
+  - `services.name`
+  - `schools.short_name`
+- nuovo pulsante in dashboard admin che lancia la sincronizzazione dal Google
+  Fogli condiviso in sola lettura
+- sincronizzazione admin che:
+  - legge i fogli `Iscritti` e `Presenze`
+  - importa righe nuove
+  - aggiorna righe gia' importate se cambiano nel foglio
+  - non tocca ancora il flusso certificati finale
+
+Ancora da sviluppare:
+
+- vista coordinatore per vedere gli studenti PCTO assegnati al proprio servizio
+- vista coordinatore delle presenze registrate da quegli studenti
+- flusso coordinatore per creare il certificato a partire dai dati PCTO importati
+- flusso coordinatore per inviare il certificato generato
 
 ## Stato dati reale su Supabase
 
@@ -336,6 +369,8 @@ Caso gia' incontrato e risolto:
 - `certificate_requests`
 - `request_events`
 - `email_deliveries`
+- `pcto_student_registrations`
+- `pcto_attendance_records`
 
 ### RLS gia' presente
 
@@ -350,6 +385,7 @@ Caso gia' incontrato e risolto:
 - `supabase/migrations/20260416234500_add_certificate_text_overrides.sql`
 - `supabase/migrations/20260417173000_add_certificate_templates.sql`
 - `supabase/migrations/20260418090000_add_certificate_signature_settings.sql`
+- `supabase/migrations/20260424230500_add_pcto_import_tables.sql`
 - `supabase/config.toml`
 - `lib/supabase/database.types.ts`
 
@@ -416,6 +452,7 @@ Caso gia' incontrato e risolto:
 - `lib/certificates/finalize.ts`
 - `lib/certificates/pdf.ts`
 - `lib/coordinator/requests.ts`
+- `lib/pcto/google-sheet-sync.ts`
 - `lib/utils/form-data.ts`
 - `lib/utils/request-url.ts`
 
@@ -433,6 +470,7 @@ Caso gia' incontrato e risolto:
 - `scripts/import-coordinators-from-csv.mjs`
 - `scripts/import-services-from-csv.mjs`
 - `scripts/import-schools-from-xlsx.py`
+- `scripts/import-pcto-2025-from-xlsx.py`
 
 ## Legacy da tenere come riferimento di dominio
 
@@ -458,7 +496,7 @@ Il file Excel scuole conferma il naming legacy:
 - repository Git inizializzato
 - remote `origin` = `https://github.com/giovaniperlapace/pcto-certificati.git`
 - branch principale = `main`
-- ultimo commit pushato: `ff72535`
+- ultimo commit pushato: `a8dc93d`
 
 Nota pratica:
 
@@ -502,9 +540,10 @@ Ordine sensato:
 
 1. testare sul campo la versione `1.0` su casi reali controllati
 2. monitorare consegne email a studente, scuola e docente
-3. raccogliere feedback operativi da coordinatori e admin
-4. applicare eventuali correzioni bug o aggiornamenti mirati
-5. pianificare il primo ciclo di manutenzione post-rilascio
+3. completare il flusso coordinatore sui dati PCTO importati
+4. raccogliere feedback operativi da coordinatori e admin
+5. applicare eventuali correzioni bug o aggiornamenti mirati
+6. pianificare il primo ciclo di manutenzione post-rilascio
 
 ### Stato post-rilascio v1.0
 
@@ -525,6 +564,17 @@ La versione `1.0` copre gia':
 - eliminazione manuale di richieste test dall'area admin con conferma esplicita
 - footer globale permanente con versione app, data ultima modifica e contatto
   `info@giovaniperlapace.it`
+- sincronizzazione admin dei dati PCTO importati dal Google Fogli
+  `PCTO_Volontariato_2025` verso tabelle di staging dedicate
+
+La versione attuale non copre ancora:
+
+- visualizzazione lato coordinatore degli studenti PCTO assegnati al proprio
+  servizio
+- visualizzazione lato coordinatore delle presenze importate
+- creazione certificato dal dataset staging PCTO senza passare da richiesta
+  pubblica
+- invio del certificato creato da quel nuovo flusso
 
 Note operative:
 

@@ -201,7 +201,6 @@ export function ServicesAdminTable({
     <>
       <TablePanel
         title="Anagrafica servizi"
-        description="Vista, modifica e inserimento ora passano da una tabella unica con filtri rapidi, mantenendo separata la pagina dedicata per i collegamenti con i coordinatori."
         metrics={[
           { label: "totali", value: String(totalServices) },
           { label: "attivi", value: String(activeServices) },

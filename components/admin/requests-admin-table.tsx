@@ -205,7 +205,6 @@ export function RequestsAdminTable({ requests }: RequestsAdminTableProps) {
   return (
     <TablePanel
       title="Richieste ricevute"
-      description="Elenco completo delle richieste arrivate dal form pubblico, ordinato dalla piu' recente alla meno recente."
       metrics={[
         { label: "totali", value: String(totalRequests) },
         { label: "da revisionare", value: String(submittedRequests) },
@@ -361,9 +360,24 @@ export function RequestsAdminTable({ requests }: RequestsAdminTableProps) {
                     <div className="inline-flex items-center justify-end gap-2">
                       <Link
                         href={`/admin/richieste/${request.id}`}
-                        className="inline-flex rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
+                        className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
+                        aria-label={`Apri richiesta ${request.student_first_name} ${request.student_last_name}`}
+                        title="Apri richiesta"
                       >
-                        Apri
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4"
+                          aria-hidden="true"
+                        >
+                          <circle cx="11" cy="11" r="7" />
+                          <path d="M20 20l-3.5-3.5" />
+                        </svg>
                       </Link>
                       <form
                         action={deleteCertificateRequestAction}

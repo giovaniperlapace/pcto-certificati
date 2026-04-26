@@ -171,24 +171,6 @@ export default async function AdminDashboardPage({
       </section>
 
       <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="space-y-3">
-          <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
-            Prossimi passi amministrativi
-          </h2>
-          <ul className="space-y-2 text-sm leading-6 text-zinc-600">
-            <li>
-              1. Caricare le scuole con nome formale, email scuola e docente.
-            </li>
-            <li>2. Creare i servizi con giorno, orario e indirizzo.</li>
-            <li>3. Creare i coordinatori con email valida per il Magic Link.</li>
-            <li>
-              4. Collegare almeno un coordinatore attivo a ogni servizio attivo.
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="space-y-3 border-b border-zinc-200 pb-5">
           <h2 className="text-xl font-semibold tracking-tight text-zinc-950">
             Template certificati

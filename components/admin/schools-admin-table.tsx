@@ -202,7 +202,6 @@ export function SchoolsAdminTable({ schools }: SchoolsAdminTableProps) {
     <>
       <TablePanel
         title="Anagrafica scuole"
-        description="Le scuole ora si gestiscono in una vista compatta con filtri per recapiti, referente e preferenze di invio del certificato."
         metrics={[
           { label: "totali", value: String(totalSchools) },
           { label: "attive", value: String(activeSchools) },

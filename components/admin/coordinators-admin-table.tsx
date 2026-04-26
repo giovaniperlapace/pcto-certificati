@@ -216,7 +216,6 @@ export function CoordinatorsAdminTable({
     <>
       <TablePanel
         title="Anagrafica coordinatori"
-        description="La gestione dei coordinatori adesso segue lo stesso pattern tabellare del progetto di riferimento, con evidenza immediata di attivazione e collegamenti ai servizi."
         metrics={[
           { label: "totali", value: String(totalCoordinators) },
           { label: "attivi", value: String(activeCoordinators) },

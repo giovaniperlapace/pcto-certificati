@@ -19,6 +19,8 @@ const ATTENDANCE_SHEET = {
 type AdminClient = SupabaseClient<Database>;
 type RegistrationInsert =
   Database["public"]["Tables"]["pcto_student_registrations"]["Insert"];
+type RegistrationRow =
+  Database["public"]["Tables"]["pcto_student_registrations"]["Row"];
 type AttendanceInsert =
   Database["public"]["Tables"]["pcto_attendance_records"]["Insert"];
 type CertificateType = Database["public"]["Enums"]["certificate_type"];
@@ -81,6 +83,8 @@ const ATTENDANCE_HEADERS = {
   studentLastName: "Cognome",
   submittedAt: "Informazioni cronologiche",
 } as const;
+
+const TEMP_SOURCE_ROW_OFFSET = 1_000_000;
 
 function normalizeText(value: string | null | undefined) {
   if (!value) {
@@ -528,6 +532,80 @@ async function upsertRegistrationRows(
   }
 }
 
+async function loadRegistrationSourceRows(
+  supabase: AdminClient,
+  schoolYearId: string,
+) {
+  const { data, error } = await supabase
+    .from("pcto_student_registrations")
+    .select("id, source_code, source_row_number")
+    .eq("school_year_id", schoolYearId)
+    .eq("source_spreadsheet_id", PCTO_GOOGLE_SHEET_ID)
+    .eq("source_sheet_name", REGISTRATIONS_SHEET.name);
+
+  if (error) {
+    throw error;
+  }
+
+  return data satisfies Pick<
+    RegistrationRow,
+    "id" | "source_code" | "source_row_number"
+  >[];
+}
+
+async function releaseConflictingRegistrationSourceRows(
+  supabase: AdminClient,
+  schoolYearId: string,
+  rows: RegistrationInsert[],
+) {
+  const incomingCodeByRowNumber = new Map(
+    rows.map((row) => [row.source_row_number, row.source_code]),
+  );
+  const incomingRowNumberByCode = new Map(
+    rows.map((row) => [row.source_code, row.source_row_number]),
+  );
+  const existingRows = await loadRegistrationSourceRows(supabase, schoolYearId);
+  const conflictingRows = existingRows.filter((row) => {
+    const incomingCodeForCurrentRow = incomingCodeByRowNumber.get(
+      row.source_row_number,
+    );
+    const incomingRowForCurrentCode = incomingRowNumberByCode.get(row.source_code);
+
+    return (
+      (incomingCodeForCurrentRow !== undefined &&
+        incomingCodeForCurrentRow !== row.source_code) ||
+      (incomingRowForCurrentCode !== undefined &&
+        incomingRowForCurrentCode !== row.source_row_number)
+    );
+  });
+  const reservedRowNumbers = new Set(
+    existingRows.map((row) => row.source_row_number),
+  );
+  let nextTemporaryRowNumber = TEMP_SOURCE_ROW_OFFSET;
+
+  for (const row of conflictingRows) {
+    while (reservedRowNumbers.has(nextTemporaryRowNumber)) {
+      nextTemporaryRowNumber += 1;
+    }
+
+    const temporaryRowNumber = nextTemporaryRowNumber;
+    reservedRowNumbers.delete(row.source_row_number);
+    reservedRowNumbers.add(temporaryRowNumber);
+    nextTemporaryRowNumber += 1;
+
+    const { error } = await supabase
+      .from("pcto_student_registrations")
+      .update({
+        source_row_number: temporaryRowNumber,
+      })
+      .eq("id", row.id);
+
+    if (error) {
+      throw error;
+    }
+  }
+}
+
 async function loadConcludedRegistrationCodes(
   supabase: AdminClient,
   schoolYearId: string,
@@ -605,6 +683,11 @@ export async function syncPctoGoogleSheetImport(supabase: AdminClient) {
     .filter((row): row is RegistrationInsert => row !== null);
   const registrationRowsSkipped = registrationRows.length - registrationInserts.length;
 
+  await releaseConflictingRegistrationSourceRows(
+    supabase,
+    schoolYearId,
+    registrationInserts,
+  );
   await upsertRegistrationRows(supabase, registrationInserts);
 
   const registrationIdsByCode = await loadRegistrationIdsByCode(supabase, schoolYearId);

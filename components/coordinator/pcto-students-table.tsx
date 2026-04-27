@@ -37,6 +37,7 @@ type SortKey =
   | "student_first_name"
   | "student_last_name"
   | "school_name"
+  | "assigned_service_name"
   | "class_label"
   | "registration_status"
   | "attendance_count";
@@ -222,6 +223,12 @@ export function PctoStudentsTable({
           );
         case "school_name":
           return compareText(left.school_name, right.school_name, sortDirection);
+        case "assigned_service_name":
+          return compareText(
+            left.assigned_service_name,
+            right.assigned_service_name,
+            sortDirection,
+          );
         case "class_label":
           return compareText(
             formatClassLabel(left),
@@ -376,6 +383,14 @@ export function PctoStudentsTable({
                 </th>
                 <th className="px-4 py-3">
                   <SortableHeaderButton
+                    label="Servizio"
+                    isActive={sortKey === "assigned_service_name"}
+                    direction={sortDirection}
+                    onClick={() => toggleSort("assigned_service_name")}
+                  />
+                </th>
+                <th className="px-4 py-3">
+                  <SortableHeaderButton
                     label="Classe"
                     isActive={sortKey === "class_label"}
                     direction={sortDirection}
@@ -405,7 +420,7 @@ export function PctoStudentsTable({
               {visibleStudents.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-4 py-8 text-center text-sm text-zinc-500"
                   >
                     Nessuno studente PCTO corrisponde ai filtri attivi.
@@ -425,6 +440,11 @@ export function PctoStudentsTable({
                     </td>
                     <td className="max-w-[260px] px-4 py-3 text-zinc-700">
                       <span className="line-clamp-2">{student.school_name ?? "-"}</span>
+                    </td>
+                    <td className="max-w-[240px] px-4 py-3 text-zinc-700">
+                      <span className="line-clamp-2">
+                        {student.assigned_service_name ?? "-"}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-zinc-700">
                       {formatClassLabel(student)}

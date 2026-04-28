@@ -70,14 +70,15 @@ function buildTemplate(
     `in allegato trovi il certificato ${certificateTypeLabel} intestato a ${studentFullName}.`;
   let closing =
     "Per qualsiasi necessità puoi rispondere a questa email.";
+  let signatureLines = ["Giovani per la Pace"];
   let subject = `${certificateTypeLabel} - ${studentFullName}`;
 
   if (recipientType === "school") {
     greeting = "Buongiorno,";
     intro =
-      `in allegato trovi una copia del certificato ${certificateTypeLabel} rilasciato a ${studentFullName}, classe ${request.class_label}, ${request.school_name_snapshot}.`;
-    closing =
-      "La copia viene inviata perché prevista nelle preferenze della richiesta approvata.";
+      `si trasmette in allegato una copia del certificato ${certificateTypeLabel} rilasciato a ${studentFullName}, classe ${request.class_label}, ${request.school_name_snapshot}.`;
+    closing = "Cordiali saluti";
+    signatureLines = ["Comunità di Sant'Egidio", "Giovani per la Pace"];
     subject = `Copia certificato ${certificateTypeLabel} - ${studentFullName}`;
   }
 
@@ -86,15 +87,16 @@ function buildTemplate(
 
     greeting = teacherName ? `Buongiorno ${teacherName},` : "Buongiorno,";
     intro =
-      `in allegato trovi una copia del certificato ${certificateTypeLabel} rilasciato a ${studentFullName}, classe ${request.class_label}.`;
-    closing =
-      "La copia viene inviata perché prevista nelle preferenze della richiesta approvata.";
+      `si trasmette in allegato una copia del certificato ${certificateTypeLabel} rilasciato a ${studentFullName}, classe ${request.class_label}.`;
+    closing = "Cordiali saluti";
+    signatureLines = ["Comunità di Sant'Egidio", "Giovani per la Pace"];
     subject = `Copia docente certificato ${certificateTypeLabel} - ${studentFullName}`;
   }
 
   const escapedGreeting = escapeHtml(greeting);
   const escapedIntro = escapeHtml(intro);
   const escapedClosing = escapeHtml(closing);
+  const escapedSignatureLines = signatureLines.map((line) => escapeHtml(line));
   const escapedServiceName = escapeHtml(request.service_name_snapshot);
   const escapedYear = escapeHtml(request.schoolYearLabel);
 
@@ -109,7 +111,7 @@ function buildTemplate(
       "",
       closing,
       "",
-      "Giovani per la Pace",
+      ...signatureLines,
     ].join("\n"),
     html: `
       <div style="font-family: Georgia, 'Times New Roman', serif; color: #27272a; line-height: 1.6;">
@@ -120,7 +122,7 @@ function buildTemplate(
           <strong>Anno scolastico:</strong> ${escapedYear}
         </p>
         <p>${escapedClosing}</p>
-        <p style="margin-top: 24px;">Giovani per la Pace</p>
+        <p style="margin-top: 24px;">${escapedSignatureLines.join("<br />")}</p>
       </div>
     `.trim(),
   } satisfies CertificateEmailTemplate;

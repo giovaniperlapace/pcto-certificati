@@ -316,17 +316,28 @@ Al momento esistono in `auth.users`:
 
 Situazione attuale:
 
-- la probe via `signInWithOtp` ora risponde senza errore
-- quindi il Magic Link al momento non risulta bloccato lato API Supabase
+- dopo la migrazione self-hosted del `2026-04-29`, il Magic Link non dipende
+  piu' dal mailer Supabase Auth
+- la pagina `/entra` chiama `POST /api/auth/login/magic-link`
+- la route genera il token con Supabase Auth Admin `generate_link`
+- l'email utente viene inviata dall'app via Gmail SMTP (`GMAIL_USER` +
+  `GMAIL_APP_PASSWORD`) con testo specifico per la piattaforma certificati
+- `POST /api/auth/login/preflight` espone lo stesso controllo accessi senza
+  inviare email
+- la logica condivisa di verifica accessi e' in `lib/auth/login-access.ts`
+- il callback `/auth/callback` accetta sia il vecchio parametro `code` sia il
+  nuovo `token_hash`/`type`
 - il callback ora gestisce correttamente il redirect finale leggendo e decodificando i cookie di `next`
 - login admin riuscito -> redirect diretto a `/admin`
 - login coordinatore riuscito -> redirect diretto a `/coordinatore`
 
 Attenzione:
 
-- in una sessione precedente il Magic Link falliva con `500 Error sending magic link email`
-- il problema sembrava legato alla configurazione SMTP custom di Supabase Auth
-- se il problema si ripresenta, controllare prima `Authentication > SMTP Settings`
+- non ripristinare il vecchio invio con `supabase.auth.signInWithOtp` senza una
+  ragione esplicita: sul self-hosted e' piu' fragile per SMTP/redirect
+- se l'invio fallisce, controllare prima le env Vercel/locali `GMAIL_USER`,
+  `GMAIL_APP_PASSWORD`, `NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` e `SUPABASE_SERVICE_ROLE_KEY`
 
 ### Ruoli admin
 

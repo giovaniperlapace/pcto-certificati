@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
-import { FlashMessage } from "@/components/admin/flash-message";
-import { PendingSubmitButton } from "@/components/ui/pending-submit-button";
 import { getAuthContext } from "@/lib/auth/admin";
-import { sendMagicLinkAction } from "@/app/entra/actions";
+import { LoginForm } from "@/app/entra/login-form";
 
 type SignInPageProps = {
   searchParams: Promise<{
@@ -59,50 +57,12 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         </div>
 
         <section className="w-full max-w-xl rounded-[2rem] border border-zinc-200 bg-white p-8 shadow-sm">
-          <div className="space-y-6">
-            <FlashMessage error={error} success={success} />
-
-            <form action={sendMagicLinkAction} className="space-y-5">
-              <input type="hidden" name="next" value={next} />
-
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-zinc-800">
-                  Email
-                </span>
-                <input
-                  required
-                  type="email"
-                  name="email"
-                  placeholder="e-mail"
-                  className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
-                />
-              </label>
-
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-zinc-800">
-                  Tipo di accesso
-                </span>
-                <select
-                  name="access_mode"
-                  defaultValue={accessMode}
-                  className="w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
-                >
-                  <option value="coordinator">Coordinatore</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <p className="text-xs leading-5 text-zinc-500">
-                  Scegli `Admin` solo se il coordinatore e&apos; stato abilitato anche
-                  con privilegi amministrativi.
-                </p>
-              </label>
-
-              <PendingSubmitButton
-                className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:hover:bg-zinc-950"
-                idleLabel="Invia Magic Link"
-                pendingLabel="Invio Magic Link in corso..."
-              />
-            </form>
-          </div>
+          <LoginForm
+            accessMode={accessMode}
+            error={error}
+            next={next}
+            success={success}
+          />
         </section>
       </section>
     </main>

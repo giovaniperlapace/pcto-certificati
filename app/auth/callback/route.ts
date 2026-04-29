@@ -1,9 +1,22 @@
 import { NextResponse } from "next/server";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const MAGIC_LINK_NEXT_COOKIE = "pcto_magic_link_next";
 const MAGIC_LINK_ACCESS_MODE_COOKIE = "pcto_magic_link_access_mode";
+const OTP_TYPES: readonly EmailOtpType[] = [
+  "signup",
+  "magiclink",
+  "recovery",
+  "invite",
+  "email",
+  "email_change",
+];
+
+function isOtpType(value: string | null): value is EmailOtpType {
+  return Boolean(value && OTP_TYPES.includes(value as EmailOtpType));
+}
 
 function getSafeRedirectPath(next: string | null) {
   if (!next || !next.startsWith("/")) {
@@ -41,6 +54,10 @@ function getSafeAccessMode(value: string | null) {
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const tokenHash =
+    requestUrl.searchParams.get("token_hash") ??
+    requestUrl.searchParams.get("token");
+  const otpType = requestUrl.searchParams.get("type");
   const cookieHeader = request.headers.get("cookie");
   const nextFromCookie = getCookieValue(cookieHeader, MAGIC_LINK_NEXT_COOKIE);
   const accessMode = getSafeAccessMode(
@@ -53,9 +70,16 @@ export async function GET(request: Request) {
       (accessMode === "coordinator" ? "/coordinatore" : "/admin"),
   );
 
-  if (code) {
+  const canVerifyOtp = Boolean(tokenHash && isOtpType(otpType));
+
+  if (code || canVerifyOtp) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error } = code
+      ? await supabase.auth.exchangeCodeForSession(code)
+      : await supabase.auth.verifyOtp({
+          token_hash: tokenHash ?? "",
+          type: otpType as EmailOtpType,
+        });
 
     if (!error) {
       const {

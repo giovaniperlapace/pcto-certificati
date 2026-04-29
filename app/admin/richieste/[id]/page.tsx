@@ -142,6 +142,7 @@ export default async function AdminRequestDetailPage({
   const reviewerLabel = reviewer
     ? `${reviewer.first_name} ${reviewer.last_name}`
     : "-";
+  const certificateDownloadPath = `/admin/richieste/${request.id}/certificato`;
 
   return (
     <div className="space-y-8">
@@ -298,10 +299,20 @@ export default async function AdminRequestDetailPage({
               <p>Motivazione rifiuto: {request.rejection_reason ?? "-"}</p>
               <p>Note del coordinatore: {request.decision_notes ?? "-"}</p>
               <p>
-                PDF storage:{" "}
+                Download PDF:{" "}
                 {request.pdf_storage_path ? request.pdf_storage_path : "-"}
               </p>
             </div>
+            {request.pdf_storage_path ? (
+              <Link
+                href={certificateDownloadPath}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-5 inline-flex rounded-full border border-zinc-200 bg-white px-5 py-3 text-sm font-medium text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
+              >
+                Scarica certificato PDF
+              </Link>
+            ) : null}
           </section>
 
           <section className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">

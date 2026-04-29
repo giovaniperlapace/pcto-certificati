@@ -43,16 +43,23 @@ function isStatusFilter(value: string | undefined): value is StatusFilter {
 async function getRequestCount(
   supabase: Awaited<ReturnType<typeof requireCoordinator>>["supabase"],
   options: {
+    assignedServiceIds: string[];
     serviceId?: string;
     status?: RequestStatus;
-  } = {},
+  },
 ) {
+  if (!options.serviceId && options.assignedServiceIds.length === 0) {
+    return 0;
+  }
+
   let query = supabase
     .from("certificate_requests")
     .select("*", { count: "exact", head: true });
 
   if (options.serviceId) {
     query = query.eq("service_id", options.serviceId);
+  } else {
+    query = query.in("service_id", options.assignedServiceIds);
   }
 
   if (options.status) {
@@ -116,6 +123,7 @@ export default async function CoordinatorDashboardPage({
     })
     .filter((service): service is AssignedService => service !== null)
     .sort((left, right) => left.name.localeCompare(right.name, "it"));
+  const assignedServiceIds = assignedServices.map((service) => service.id);
 
   const requestedServiceId = params.service;
   const selectedServiceId = assignedServices.some(
@@ -131,6 +139,7 @@ export default async function CoordinatorDashboardPage({
     REQUEST_STATUS_ORDER.map(async (status) => [
       status,
       await getRequestCount(supabase, {
+        assignedServiceIds,
         serviceId: selectedServiceId,
         status,
       }),
@@ -141,6 +150,7 @@ export default async function CoordinatorDashboardPage({
     number
   >;
   const totalRequestCount = await getRequestCount(supabase, {
+    assignedServiceIds,
     serviceId: selectedServiceId,
   });
 
@@ -154,13 +164,18 @@ export default async function CoordinatorDashboardPage({
 
   if (selectedServiceId) {
     requestsQuery = requestsQuery.eq("service_id", selectedServiceId);
+  } else if (assignedServiceIds.length > 0) {
+    requestsQuery = requestsQuery.in("service_id", assignedServiceIds);
   }
 
   if (selectedStatus !== "all") {
     requestsQuery = requestsQuery.eq("status", selectedStatus);
   }
 
-  const { data: requests, error: requestsError } = await requestsQuery;
+  const { data: requests, error: requestsError } =
+    assignedServiceIds.length === 0
+      ? { data: [], error: null }
+      : await requestsQuery;
 
   if (requestsError) {
     throw requestsError;

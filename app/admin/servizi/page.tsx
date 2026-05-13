@@ -19,9 +19,15 @@ export default async function ServicesPage({ searchParams }: ServicesPageProps) 
   const [
     { data: services, error: servicesError },
     { data: assignments, error: assignmentsError },
+    { data: activeCoordinators, error: activeCoordinatorsError },
   ] = await Promise.all([
     supabase.from("services").select("*").order("name", { ascending: true }),
     supabase.from("service_coordinators").select("service_id, coordinator_id"),
+    supabase
+      .from("coordinators")
+      .select("id, first_name, last_name, email")
+      .eq("is_active", true)
+      .order("last_name", { ascending: true }),
   ]);
 
   if (servicesError) {
@@ -30,6 +36,10 @@ export default async function ServicesPage({ searchParams }: ServicesPageProps) 
 
   if (assignmentsError) {
     throw assignmentsError;
+  }
+
+  if (activeCoordinatorsError) {
+    throw activeCoordinatorsError;
   }
 
   const assignmentCountByService = assignments.reduce<Record<string, number>>(
@@ -57,7 +67,10 @@ export default async function ServicesPage({ searchParams }: ServicesPageProps) 
 
       <FlashMessage error={params.error ?? null} success={params.success ?? null} />
 
-      <ServicesAdminTable services={servicesWithCounts} />
+      <ServicesAdminTable
+        activeCoordinators={activeCoordinators}
+        services={servicesWithCounts}
+      />
     </div>
   );
 }

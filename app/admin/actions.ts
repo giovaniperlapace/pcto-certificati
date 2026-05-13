@@ -514,6 +514,8 @@ export async function upsertServiceAction(formData: FormData) {
   try {
     const { supabase } = await assertAdmin();
     const id = readOptionalId(formData, "id");
+    const coordinatorId = readOptionalId(formData, "coordinator_id");
+    const shouldBeActive = readBoolean(formData, "is_active");
 
     const payload = {
       name: readRequiredString(formData, "name"),
@@ -524,17 +526,72 @@ export async function upsertServiceAction(formData: FormData) {
       address: readRequiredString(formData, "address"),
       city: readRequiredString(formData, "city"),
       certificate_label: readOptionalString(formData, "certificate_label"),
-      is_active: readBoolean(formData, "is_active"),
+      is_active: shouldBeActive,
     };
 
-    const query = id
-      ? supabase.from("services").update(payload).eq("id", id)
-      : supabase.from("services").insert(payload);
+    if (!id && coordinatorId) {
+      const { data: coordinator, error: coordinatorError } = await supabase
+        .from("coordinators")
+        .select("id, is_active")
+        .eq("id", coordinatorId)
+        .maybeSingle();
 
-    const { error } = await query;
+      if (coordinatorError) {
+        throw coordinatorError;
+      }
 
-    if (error) {
-      throw error;
+      if (!coordinator?.is_active) {
+        throw new Error(
+          "Seleziona un coordinatore attivo per creare e attivare il servizio nella stessa operazione.",
+        );
+      }
+
+      const { data: service, error: serviceError } = await supabase
+        .from("services")
+        .insert({
+          ...payload,
+          is_active: false,
+        })
+        .select("id")
+        .single();
+
+      if (serviceError) {
+        throw serviceError;
+      }
+
+      const { error: assignmentError } = await supabase
+        .from("service_coordinators")
+        .insert({
+          service_id: service.id,
+          coordinator_id: coordinatorId,
+          is_primary: true,
+          receives_new_request_notifications: true,
+        });
+
+      if (assignmentError) {
+        throw assignmentError;
+      }
+
+      if (shouldBeActive) {
+        const { error: activationError } = await supabase
+          .from("services")
+          .update({ is_active: true })
+          .eq("id", service.id);
+
+        if (activationError) {
+          throw activationError;
+        }
+      }
+    } else {
+      const query = id
+        ? supabase.from("services").update(payload).eq("id", id)
+        : supabase.from("services").insert(payload);
+
+      const { error } = await query;
+
+      if (error) {
+        throw error;
+      }
     }
 
     revalidatePath("/admin");

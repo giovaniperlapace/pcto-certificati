@@ -7,6 +7,7 @@ import {
   updateServiceActiveStateAction,
   upsertServiceAction,
 } from "@/app/admin/actions";
+import { CoordinatorSearchSelect } from "@/components/admin/coordinator-search-select";
 import {
   SortableHeaderButton,
   TableActionButton,
@@ -29,6 +30,11 @@ type ServiceRow = Tables<"services"> & {
   assignmentCount: number;
 };
 
+type CoordinatorOption = Pick<
+  Tables<"coordinators">,
+  "email" | "first_name" | "id" | "last_name"
+>;
+
 type SortKey =
   | "name"
   | "weekday"
@@ -38,6 +44,7 @@ type SortKey =
   | "is_active";
 
 type ServicesAdminTableProps = {
+  activeCoordinators: CoordinatorOption[];
   services: ServiceRow[];
 };
 
@@ -65,6 +72,7 @@ const weekdays = [
 ];
 
 export function ServicesAdminTable({
+  activeCoordinators,
   services,
 }: ServicesAdminTableProps) {
   const [editor, setEditor] = useState<EditorState>(null);
@@ -448,7 +456,7 @@ export function ServicesAdminTable({
         title={editor?.mode === "create" ? "Nuovo servizio" : "Modifica servizio"}
         description={
           editor?.mode === "create"
-            ? "Inserisci il servizio nella stessa struttura usata nella tabella. Potrai poi aprire la pagina dedicata per collegare i coordinatori."
+            ? "Inserisci il servizio e, se vuoi attivarlo subito, collega gia' un coordinatore attivo."
             : editingService
               ? editingService.name
               : undefined
@@ -544,9 +552,39 @@ export function ServicesAdminTable({
               />
             </TableField>
 
+            {!editingService ? (
+              <TableField
+                label="Coordinatore iniziale"
+                className="md:col-span-2"
+              >
+                {activeCoordinators.length > 0 ? (
+                  <>
+                    <CoordinatorSearchSelect
+                      coordinators={activeCoordinators}
+                      hiddenInputName="coordinator_id"
+                      required={false}
+                    />
+                    <p className="text-xs leading-5 text-zinc-500">
+                      Opzionale. Se lo selezioni, il servizio puo&apos; essere
+                      creato gia&apos; attivo nella stessa operazione.
+                    </p>
+                  </>
+                ) : (
+                  <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    Nessun coordinatore attivo disponibile. Crea il servizio non
+                    attivo e collega un coordinatore dopo averlo aggiunto.
+                  </p>
+                )}
+              </TableField>
+            ) : null}
+
             <TableCheckboxField
               label="Servizio attivo"
-              description="Ricordati di collegare almeno un coordinatore attivo prima di lasciarlo disponibile nel flusso pubblico."
+              description={
+                editingService
+                  ? "Ricordati di collegare almeno un coordinatore attivo prima di lasciarlo disponibile nel flusso pubblico."
+                  : "Puoi attivarlo subito se hai selezionato un coordinatore iniziale attivo."
+              }
               className="md:col-span-2"
             >
               <input

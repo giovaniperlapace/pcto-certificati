@@ -19,10 +19,14 @@ type CoordinatorOption = {
 
 type CoordinatorSearchSelectProps = {
   coordinators: CoordinatorOption[];
+  hiddenInputName?: string;
+  required?: boolean;
 };
 
 export function CoordinatorSearchSelect({
   coordinators,
+  hiddenInputName = "coordinator_id",
+  required = true,
 }: CoordinatorSearchSelectProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -91,12 +95,12 @@ export function CoordinatorSearchSelect({
 
   return (
     <div ref={rootRef} className="relative space-y-2">
-      <input type="hidden" name="coordinator_id" value={selectedCoordinatorId} />
+      <input type="hidden" name={hiddenInputName} value={selectedCoordinatorId} />
 
       <input
         ref={inputRef}
         type="text"
-        required
+        required={required}
         autoComplete="off"
         value={searchValue}
         onChange={(event) => {

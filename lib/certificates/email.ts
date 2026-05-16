@@ -214,7 +214,9 @@ function buildNewRequestNotificationTemplate(params: {
 }
 
 function buildPctoImportedStudentNotificationTemplate(params: {
+  attendanceCount: number;
   coordinatorDashboardUrl: string;
+  hoursRequested: number;
   serviceName: string;
   sourceCode: string;
   studentFirstName: string;
@@ -238,10 +240,14 @@ function buildPctoImportedStudentNotificationTemplate(params: {
       `Studente: ${params.studentFirstName} ${params.studentLastName}`,
       `Codice ID: ${params.sourceCode}`,
       `Servizio: ${params.serviceName}`,
+      `Presenze nel registro: ${params.attendanceCount}`,
+      `Ore previste nel certificato: ${params.hoursRequested}`,
       "",
-      "Accedi all'area coordinatore, sezione Studenti PCTO, per generare e inviare il certificato se opportuno.",
+      "Verifica che presenze e ore siano corrette. Se non lo sono, modificale nella richiesta prima di approvarla.",
       "",
-      `Area coordinatore PCTO: ${params.coordinatorDashboardUrl}`,
+      "Accedi all'area coordinatore per revisionare la richiesta e proseguire con il flusso ordinario.",
+      "",
+      `Richiesta: ${params.coordinatorDashboardUrl}`,
       "",
       "Giovani per la Pace",
     ].join("\n"),
@@ -252,11 +258,14 @@ function buildPctoImportedStudentNotificationTemplate(params: {
         <p>
           <strong>Studente:</strong> ${escapedStudent}<br />
           <strong>Codice ID:</strong> ${escapedSourceCode}<br />
-          <strong>Servizio:</strong> ${escapedServiceName}
+          <strong>Servizio:</strong> ${escapedServiceName}<br />
+          <strong>Presenze nel registro:</strong> ${params.attendanceCount}<br />
+          <strong>Ore previste nel certificato:</strong> ${params.hoursRequested}
         </p>
-        <p>Accedi all'area coordinatore, sezione Studenti PCTO, per generare e inviare il certificato se opportuno.</p>
+        <p>Verifica che presenze e ore siano corrette. Se non lo sono, modificale nella richiesta prima di approvarla.</p>
+        <p>Accedi all'area coordinatore per revisionare la richiesta e proseguire con il flusso ordinario.</p>
         <p>
-          <a href="${escapedDashboardUrl}">Apri Studenti PCTO</a>
+          <a href="${escapedDashboardUrl}">Apri richiesta</a>
         </p>
         <p style="margin-top: 24px;">Giovani per la Pace</p>
       </div>
@@ -326,7 +335,9 @@ export async function sendNewRequestNotificationEmail(params: {
 }
 
 export async function sendPctoImportedStudentCertificateRequestEmail(params: {
+  attendanceCount: number;
   coordinatorDashboardUrl: string;
+  hoursRequested: number;
   recipientEmail: string;
   serviceName: string;
   sourceCode: string;

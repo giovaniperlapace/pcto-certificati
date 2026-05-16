@@ -11,6 +11,7 @@ import {
   createAdminClient,
   listAuthUsersByIds,
 } from "@/lib/supabase/admin";
+import type { Tables } from "@/lib/supabase/database.types";
 import { getBaseUrl } from "@/lib/utils/request-url";
 import {
   readOptionalString,
@@ -59,12 +60,32 @@ type NewRequestDeliveryResult = {
 
 type PctoImportedStudent = {
   assigned_service_name: string | null;
+  attendance_count: number | null;
+  class_section: string | null;
+  class_year: string | null;
   id: string;
+  school_name: string | null;
   school_year_id: string;
   source_code: string;
+  source_row_number: number;
+  student_email: string | null;
   student_first_name: string;
   student_last_name: string;
+  student_notes: string | null;
+  teacher_name: string | null;
 };
+
+type School = Pick<
+  Tables<"schools">,
+  | "full_name"
+  | "id"
+  | "school_email"
+  | "send_certificate_to_school_by_default"
+  | "send_certificate_to_teacher_by_default"
+  | "short_name"
+  | "teacher_email"
+  | "teacher_name"
+>;
 
 function redirectToForm(type: "error" | "success", message: string) {
   redirect(`${REQUEST_FORM_PATH}?${type}=${encodeURIComponent(message)}`);
@@ -261,6 +282,13 @@ function buildServiceAddressSnapshot(service: { address: string; city: string })
   return [service.address, service.city].filter(Boolean).join(", ");
 }
 
+function buildPctoClassLabel(student: PctoImportedStudent) {
+  return [student.class_year, student.class_section]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
 function isNotificationRecipient(
   value: NotificationRecipient | undefined,
 ): value is NotificationRecipient {
@@ -395,6 +423,36 @@ async function loadAdminNotificationRecipients(
   return recipients;
 }
 
+async function findSchoolByImportedName(
+  supabase: ReturnType<typeof createAdminClient>,
+  schoolName: string | null,
+) {
+  if (!schoolName) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("schools")
+    .select(
+      "id, short_name, full_name, school_email, teacher_name, teacher_email, send_certificate_to_school_by_default, send_certificate_to_teacher_by_default",
+    )
+    .eq("is_active", true);
+
+  if (error) {
+    throw error;
+  }
+
+  const normalizedSchoolName = normalizeMatchText(schoolName);
+
+  return (
+    (data ?? []).find(
+      (school) =>
+        normalizeMatchText(school.short_name) === normalizedSchoolName ||
+        normalizeMatchText(school.full_name) === normalizedSchoolName,
+    ) ?? null
+  ) satisfies School | null;
+}
+
 async function loadActiveSchoolYearId(supabase: ReturnType<typeof createAdminClient>) {
   const { data: activeYear, error } = await supabase
     .from("school_years")
@@ -421,7 +479,7 @@ async function loadPctoImportedStudentByCode(
   const { data, error } = await supabase
     .from("pcto_student_registrations")
     .select(
-      "id, school_year_id, source_code, student_first_name, student_last_name, assigned_service_name",
+      "id, school_year_id, source_code, source_row_number, student_first_name, student_last_name, student_email, student_notes, school_name, teacher_name, class_year, class_section, attendance_count, assigned_service_name",
     )
     .eq("school_year_id", schoolYearId)
     .ilike("source_code", sourceCode)
@@ -440,7 +498,7 @@ async function loadPctoServiceCoordinators(
 ) {
   const { data: services, error: servicesError } = await supabase
     .from("services")
-    .select("id, name")
+    .select("id, name, weekday, schedule_label, address, city")
     .eq("is_active", true);
 
   if (servicesError) {
@@ -568,27 +626,251 @@ export async function submitImportedPctoCertificateRequestAction(formData: FormD
     }
 
     const { service, recipients } = coordinatorRouting;
+    const studentEmail = normalizeEmail(student.student_email ?? "");
+
+    if (!studentEmail || !validateEmail(studentEmail)) {
+      redirectToPctoManualForm({
+        studentFirstName: student.student_first_name,
+        studentLastName: student.student_last_name,
+        message:
+          "Abbiamo trovato il tuo codice ID, ma manca un'email valida. Completa la richiesta PCTO con i dati mancanti.",
+      });
+    }
+
+    if (!student.school_name?.trim()) {
+      redirectToPctoManualForm({
+        studentFirstName: student.student_first_name,
+        studentLastName: student.student_last_name,
+        message:
+          "Abbiamo trovato il tuo codice ID, ma manca la scuola. Completa la richiesta PCTO con i dati mancanti.",
+      });
+    }
+
+    const submissionIpHash = await getSubmissionIpHash();
+    await ensureRecentSubmissionLimit(supabase, submissionIpHash);
+
+    const duplicateRequest = await findExistingDuplicateRequest(supabase, {
+      certificateType: "pcto",
+      schoolYearId: student.school_year_id,
+      serviceId: service.id,
+      serviceMode: "existing",
+      studentEmail,
+    });
+
+    if (duplicateRequest) {
+      throw new Error(
+        "Esiste gia' una richiesta aperta per questo studente, servizio e tipo di certificato.",
+      );
+    }
+
+    const attendanceCount = student.attendance_count ?? 0;
+    const hoursRequested = attendanceCount > 0 ? attendanceCount * 4 : 20;
+    const classLabel = buildPctoClassLabel(student) || "Non indicata";
+    const school = await findSchoolByImportedName(supabase, student.school_name);
+    const sendToSchool = Boolean(
+      school?.send_certificate_to_school_by_default && school.school_email,
+    );
+    const sendToTeacher = Boolean(
+      school?.send_certificate_to_teacher_by_default && school.teacher_email,
+    );
+    const { data: insertedRequest, error: insertError } = await supabase
+      .from("certificate_requests")
+      .insert({
+        certificate_type: "pcto",
+        class_label: classLabel,
+        hours_requested: hoursRequested,
+        school_id: school?.id ?? null,
+        school_name_snapshot: school?.full_name ?? student.school_name ?? "",
+        school_year_id: student.school_year_id,
+        send_to_school: sendToSchool,
+        send_to_teacher: sendToTeacher,
+        service_address_snapshot: buildServiceAddressSnapshot(service),
+        service_id: service.id,
+        service_name_snapshot: service.name,
+        service_schedule_snapshot: buildServiceScheduleSnapshot(service),
+        student_email: studentEmail,
+        student_first_name: student.student_first_name,
+        student_last_name: student.student_last_name,
+        student_notes: student.student_notes,
+        submission_ip_hash: submissionIpHash,
+        teacher_email_snapshot: school?.teacher_email ?? null,
+        teacher_name_snapshot: school?.teacher_name ?? student.teacher_name,
+      })
+      .select("id")
+      .single();
+
+    if (insertError) {
+      if (
+        typeof insertError === "object" &&
+        insertError !== null &&
+        "code" in insertError &&
+        insertError.code === "23505"
+      ) {
+        throw new Error(
+          "Esiste gia' una richiesta aperta per questo studente, servizio e tipo di certificato.",
+        );
+      }
+
+      throw insertError;
+    }
+
+    if (!insertedRequest) {
+      throw new Error("Impossibile creare la richiesta di certificato.");
+    }
+
     const baseUrl = await getBaseUrl().catch(
       () => "https://pcto-certificati.vercel.app",
     );
-    const coordinatorDashboardUrl = `${baseUrl}/coordinatore/pcto`;
-    const deliveryResults = await Promise.allSettled(
-      recipients.map((recipient) =>
-        sendPctoImportedStudentCertificateRequestEmail({
-          coordinatorDashboardUrl,
-          recipientEmail: recipient.email,
-          serviceName: service.name,
-          sourceCode: student.source_code,
-          studentFirstName: student.student_first_name,
-          studentLastName: student.student_last_name,
-        }),
-      ),
-    );
+    const coordinatorDashboardUrl = `${baseUrl}/coordinatore/richieste/${insertedRequest.id}`;
+    const deliveryResults: NewRequestDeliveryResult[] = [];
 
-    if (deliveryResults.every((result) => result.status === "rejected")) {
-      throw new Error(
-        "Non e' stato possibile inviare la notifica ai coordinatori.",
-      );
+    try {
+      const { error: eventError } = await supabase.from("request_events").insert({
+        actor_type: "system",
+        event_type: "request_submitted",
+        payload: {
+          attendance_count: attendanceCount,
+          hours_requested: hoursRequested,
+          pcto_student_registration_id: student.id,
+          school_id: school?.id ?? null,
+          school_name_matched: Boolean(school),
+          source: "public_pcto_code",
+          source_code: student.source_code,
+          source_row_number: student.source_row_number,
+        },
+        request_id: insertedRequest.id,
+      });
+
+      if (eventError) {
+        throw eventError;
+      }
+
+      for (const recipient of recipients) {
+        const { data: insertedDelivery, error: insertDeliveryError } =
+          await supabase
+            .from("email_deliveries")
+            .insert({
+              recipient_email: recipient.email,
+              recipient_type: "coordinator",
+              request_id: insertedRequest.id,
+              status: "pending",
+              template_key: "pcto_imported_student_request_coordinator",
+            })
+            .select("id")
+            .single();
+
+        if (insertDeliveryError) {
+          throw insertDeliveryError;
+        }
+
+        const lastAttemptAt = new Date().toISOString();
+
+        try {
+          const info = await sendPctoImportedStudentCertificateRequestEmail({
+            attendanceCount,
+            coordinatorDashboardUrl,
+            hoursRequested,
+            recipientEmail: recipient.email,
+            serviceName: service.name,
+            sourceCode: student.source_code,
+            studentFirstName: student.student_first_name,
+            studentLastName: student.student_last_name,
+          });
+          const sentAt = new Date().toISOString();
+          const { error: updateSentError } = await supabase
+            .from("email_deliveries")
+            .update({
+              attempt_count: 1,
+              error_message: null,
+              last_attempt_at: lastAttemptAt,
+              provider_message_id: info.messageId,
+              sent_at: sentAt,
+              status: "sent",
+            })
+            .eq("id", insertedDelivery.id);
+
+          if (updateSentError) {
+            console.error("Unable to update sent PCTO request email row", updateSentError);
+          }
+
+          deliveryResults.push({
+            email: recipient.email,
+            errorMessage: null,
+            fullName: `${recipient.first_name} ${recipient.last_name}`,
+            recipientId: recipient.id,
+            status: "sent",
+          });
+        } catch (sendError) {
+          const errorMessage = toErrorMessage(
+            sendError,
+            "Invio notifica richiesta PCTO non riuscito.",
+          );
+          const { error: updateFailedError } = await supabase
+            .from("email_deliveries")
+            .update({
+              attempt_count: 1,
+              error_message: errorMessage,
+              last_attempt_at: lastAttemptAt,
+              status: "failed",
+            })
+            .eq("id", insertedDelivery.id);
+
+          if (updateFailedError) {
+            console.error(
+              "Unable to update failed PCTO request email row",
+              updateFailedError,
+            );
+          }
+
+          deliveryResults.push({
+            email: recipient.email,
+            errorMessage,
+            fullName: `${recipient.first_name} ${recipient.last_name}`,
+            recipientId: recipient.id,
+            status: "failed",
+          });
+        }
+      }
+
+      const { error: queuedEventError } = await supabase
+        .from("request_events")
+        .insert({
+          actor_type: "system",
+          event_type: "coordinator_notifications_queued",
+          payload: {
+            failed_count: deliveryResults.filter(
+              (result) => result.status === "failed",
+            ).length,
+            recipient_count: deliveryResults.length,
+            recipients: deliveryResults.map((result) => ({
+              coordinator_id: result.recipientId,
+              email: result.email,
+              error_message: result.errorMessage,
+              full_name: result.fullName,
+              status: result.status,
+            })),
+            sent_count: deliveryResults.filter((result) => result.status === "sent")
+              .length,
+          },
+          request_id: insertedRequest.id,
+        });
+
+      if (queuedEventError) {
+        throw queuedEventError;
+      }
+
+      if (deliveryResults.every((result) => result.status === "failed")) {
+        throw new Error(
+          "Non e' stato possibile inviare la notifica ai coordinatori.",
+        );
+      }
+    } catch (error) {
+      await supabase
+        .from("certificate_requests")
+        .delete()
+        .eq("id", insertedRequest.id);
+
+      throw error;
     }
 
     redirect(`${REQUEST_CONFIRMATION_PATH}?type=pcto-import`);

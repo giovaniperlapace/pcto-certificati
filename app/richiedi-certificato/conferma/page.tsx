@@ -17,16 +17,16 @@ export default async function RequestCertificateConfirmationPage({
       <section className="mx-auto w-full max-w-3xl rounded-[2rem] border border-zinc-200 bg-white p-8 shadow-sm">
         <div className="space-y-5">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">
-            {isPctoImportNotification ? "Notifica inviata" : "Richiesta inviata"}
+            Richiesta inviata
           </p>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-950">
             {isPctoImportNotification
-              ? "Abbiamo avvisato il coordinatore."
+              ? "Abbiamo ricevuto la tua richiesta PCTO."
               : "Abbiamo ricevuto la tua richiesta."}
           </h1>
           <p className="text-base leading-7 text-zinc-600">
             {isPctoImportNotification
-              ? "Il tuo nominativo era gia' presente nell'elenco PCTO. Abbiamo inviato una notifica al coordinatore del servizio, che potra' generare e inviare il certificato dall'area PCTO."
+              ? "Il tuo nominativo era gia' presente nell'elenco PCTO. Abbiamo registrato la richiesta e avvisato il coordinatore del servizio, che potra' prenderla in carico dall'area coordinatore."
               : "La richiesta e' stata registrata correttamente. I coordinatori del servizio la prenderanno in carico e proseguiranno con la revisione nei prossimi passaggi del flusso."}
           </p>
           <p className="text-sm leading-6 text-zinc-500">
